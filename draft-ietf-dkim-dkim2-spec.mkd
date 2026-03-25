@@ -791,7 +791,7 @@ ABNF:
 
 ## m= the revision number of the Message-Instance header field
 
-The originator of a message uses the
+The Originator of a message uses the
 value 1. Further Message-Instance header fields are added with a value one
 more than the current highest numbered Message-Instance header field. Gaps
 in the numbering MUST be treated as making the whole message impossible
@@ -853,7 +853,7 @@ ABNF:
 
 ## i= the sequence number of the DKIM2-Signature header field
 
-The originator of a message uses the
+The Originator of a message uses the
 value 1. Further DKIM2-Signature header fields are added with a value one
 more than the current highest numbered DKIM2-Signature header field. Gaps
 in the numbering MUST be treated as making the whole message unsigned.
@@ -1019,17 +1019,17 @@ to exist;
 
 The flags values that make requests are:
 
-"donotexplode": this signer requests that the message not be sent to more
+"donotexplode": this Signer requests that the message not be sent to more
 than one recipient. A system that, by local policy, ignores this request
 MUST NOT allow any of the copies it creates to be forwarded on to any
 MTA outside its control.
 
-"donotmodify": this signer requests that the message not be modified from
+"donotmodify": this Signer requests that the message not be modified from
 the form in which it is sent. A system that, by local policy, ignores this
 request MUST NOT allow the message to be forwarded on to any
 MTA outside its control.
 
-"feedback": this signer requests feedback about how this message is handled
+"feedback": this Signer requests feedback about how this message is handled
 during delivery and thereafter. This document does not describe what such
 feedback might be or where it might be delivered. If this flag is absent
 then feedback is explicitly not required.
@@ -1218,7 +1218,7 @@ PERMFAIL:  a permanent, non-recoverable error such as a signature
 
 TEMPFAIL:  a temporary, recoverable error such as a DNS query timeout
 
-A verifier MAY cease verifying once a single failure is detected.
+A Verifier MAY cease verifying once a single failure is detected.
 
 Verifiers wishing to communicate the results of verification to other
 parts of the mail system may do so in whatever manner they see fit.
@@ -1367,9 +1367,9 @@ A Verifier SHOULD also check the chain of custody for the message
 (see {chain-of-custody}) is valid, using a relaxed domain match (see
 {{relaxed-domain-match}}).
 
-Should checking these signatures (all but the most recently applied)
-give the status TEMPFAIL then it may be possible for the Verifier
-to determine the validity of the signature at a later time. It the
+If checking these signatures (all but the most recently applied)
+gives the status TEMPFAIL then it may be possible for the Verifier
+to determine the validity of the signature at a later time. If the
 TEMPFAIL status continues to occur, or if a PERMFAIL is encountered
 then this MAY be reported to the sending MTA by means of a Delivery
 Status Notification. However the non-validating email MUST NOT be
