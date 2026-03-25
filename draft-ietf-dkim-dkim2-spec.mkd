@@ -193,6 +193,77 @@ some other entity that handles email. What they have in common is
 that at some point they had access to the entire contents of the
 email and were in a position to add their signature to the email.
 
+## Originator
+
+The entity that creates and sends the initial form of a message.
+The Originator adds the first Message-Instance header field (m=1) and
+the first DKIM2-Signature header field (i=1) to the message.
+
+## Tag
+
+A named element within a tag-list (see {{tagvaluelists}}).  A tag
+consists of a tag-name and a tag-value separated by an equals sign.
+Tags are separated by semicolons within the tag-list.
+
+## Header Field
+
+As defined in [RFC5322], a header field is a single logical line in
+the message header consisting of a field name, a colon, and a field
+body (value).  In this document "header field" always refers to a
+single field; "header fields" (plural) refers to multiple fields.
+The unqualified term "header" is avoided to prevent ambiguity.
+
+## Message Body
+
+The content of an email message that follows the blank line after
+the header fields, treated as a sequence of octets.  In this document,
+the terms "body" and "message body" are used interchangeably.
+
+## Hash
+
+A fixed-length value produced by applying a cryptographic hash
+function (such as SHA-256) to an input.  DKIM2 uses hashes to
+create a compact, verifiable representation of message header fields
+and the message body.
+
+## Glossary
+
+The following terms are used throughout this document:
+
+DKIM1
+: The original DomainKeys Identified Mail protocol as specified in
+[RFC6376].
+
+DKIM2-Signature
+: A header field containing a cryptographic signature over the
+Message-Instance and DKIM2-Signature header fields of a message,
+along with metadata about the signing domain, SMTP envelope, and
+timestamp.
+
+Message-Instance
+: A header field containing cryptographic hashes of the message
+header fields and body, along with optional recipes that allow
+undoing changes made at that hop.
+
+Recipe
+: A set of instructions encoded as a JSON object within the r= tag
+of a Message-Instance header field.  Recipes allow a Verifier to
+reconstruct the previous state of a message from its current state,
+by specifying which parts of the header fields or body to copy and
+which literal values to substitute.
+
+Chain of Custody
+: The sequence of DKIM2-Signature header fields on a message, each
+recording the SMTP envelope addresses (MAIL FROM and RCPT TO) used
+at each hop.  A valid chain of custody demonstrates that the message
+followed a plausible path from Originator to the current recipient.
+
+Selector
+: A subdivision of the key namespace for a signing domain, used
+to look up the public key in DNS.  The selector value is combined
+with the signing domain to form the DNS query name:
+selector._domainkey.domain.
+
 ## Whitespace
 
 There are two forms of whitespace used in this specification:
