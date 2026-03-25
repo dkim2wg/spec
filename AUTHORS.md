@@ -7,3 +7,11 @@ By adding your name here you are expressing your acceptance of the IETF Note Wel
 * Name: Bron Gondwana
 * Org: Fastmail Pty Ltd
 * Email: brong@fastmailteam.com
+-
+* Name: Richard Clayton
+* Org: Yahoo
+* Email: rclayton@yahooinc.com
+-
+* Name: Wei Chuang
+* Org: Google
+* Email: weihaw@google.com
