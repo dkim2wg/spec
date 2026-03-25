@@ -1,7 +1,7 @@
 ---
 title: DomainKeys Identified Mail Signatures v2 (DKIM2)
 abbrev: DKIM2 Signatures
-docname: draft-dkim-dkim2-spec-00
+docname: draft-ietf-dkim-dkim2-spec-00
 submissionType: IETF
 number:
 date:
@@ -244,10 +244,6 @@ The following ABNF tokens are used elsewhere in this document:
 
     base64string =  ALPHADIGITPS *(ALPHADIGITPS) [[FWS] "=" [[FWS] "="]]
 
-    rcptmailbox  =  ( "<Postmaster@" Domain ">" /
-                      "<Postmaster>" /
-                      Forward-path )
-
 Note that base64strings are defined in [RFC4648], but that document
 does not contain any ABNF. Note that a base64string MUST be padded
 with trailing = characters if needed.
@@ -260,7 +256,7 @@ ignored when their value is being used.
 # Signing and Verification Cryptographic Algorithms {#algorithms}
 
 DKIM2 supports multiple hashing and digital signature algorithms. One
-hash function (SHA256) if specified here and two signing algorithms
+hash function (SHA256) is specified here and two signing algorithms
 are defined by this specification: RSA-SHA256 and Ed25519-SHA256.
 Signers and Verifiers MUST implement SHA256. Signers SHOULD implement
 both RSA-SHA256 and Ed25519-SHA256. Verifiers MUST implement both
@@ -319,7 +315,7 @@ selector, whereas administratively distributed organizations can choose
 to manage disparate selectors
 and key pairs in different regions or on different email servers.
 Selectors can also be used to delegate a signing authority, which
-can be withdraw at any time. Selectors also make it possible to
+can be withdrawn at any time. Selectors also make it possible to
 seamlessly replace keys on a routine basis by signing with a new
 selector, while keeping the key associated with the old selector
 available.
@@ -709,13 +705,18 @@ empty value explicitly designates the empty string as the value.
 # The Message-Instance Header Field {#hfMessageInstance}
 
 A Message-Instance header field documents the current contents of
-the message and, in the case of a Reviser records any relevant
+the message and, in the case of a Reviser, records any relevant
 changes that have been made to the incoming message.
 
 The Message-Instance header field is a tag-list as described in
 {{tagvaluelists}}. The tags are described below.
 
 The m= and h= tags MUST be present. The r= tag is optional.
+
+ABNF:
+
+    mi-field    = "Message-Instance:" [FWS] mi-tag-list
+    mi-tag-list = mi-m-tag ";" mi-h-tag [";" mi-r-tag] *(";" tag-spec)
 
 ## m= the revision number of the Message-Instance header field
 
@@ -770,6 +771,15 @@ fields will be labelled as DKIM3 instead.
 The i=, m=, t=, mf=, rt=, d= and s= tags MUST be present.
 The other tags are optional.
 
+ABNF:
+
+    sig-field    = "DKIM2-Signature:" [FWS] sig-tag-list
+    sig-tag-list = sig-i-tag ";" sig-m-tag ";" sig-t-tag ";"
+                   sig-mf-tag ";" sig-rt-tag ";"
+                   sig-d-tag ";" sig-s-tag
+                   [";" sig-n-tag] [";" sig-f-tag]
+                   *(";" tag-spec)
+
 ## i= the sequence number of the DKIM2-Signature header field
 
 The originator of a message uses the
@@ -806,7 +816,9 @@ Note the value MUST be simple ASCII and MUST NOT contain semicolon.
 
 ABNF:
 
-    sig-n-tag = %x6e [FWS] "=" [FWS] *(%x21-3A / %x3C-7E/ FWS)
+    sig-n-tag   = %x6e [FWS] "=" [FWS] nonce-value
+    nonce-value = *64(%x21-3A / %x3C-7E)
+                      ; printable ASCII except semicolon, max 64 chars
 
 ## t=  signature timestamp
 
@@ -967,7 +979,7 @@ of a message. They may be done in any appropriate order.
 ## Add any Necessary Message-Instance Header Fields
 
 If a system is generating the initial form of a message or if
-it a Reviser that has made to changes to the message body and/or
+it is a Reviser that has made changes to the message body and/or
 header fields then it MUST compute the body hash as described in
 {{computing-body-hash}} and the hash of the header fields
 as described in {{computing-header-hash}}.
@@ -997,8 +1009,8 @@ header fields SHOULD contain at least one "recipe".
 
 ## Provide a "Chain of Custody" for the Message {#chain-of-custody}
 
-To construct the DKIM2-Signature header field contains the MAIL FROM
-and RCPT TO values that will be used when the message is transmitted
+The DKIM2-Signature header field contains the MAIL FROM
+and RCPT TO values that will be used when the message is transmitted,
 so these [RFC5321] "envelope" values MUST be available to (or
 deducible by) a Signer.
 
@@ -1018,7 +1030,7 @@ When the message being signed already has a DKIM2-Signature header field
 are considered. This "chain of custody" contributes to the way in
 which DKIM2 tackles "DKIM replay" attacks.
 
-In any situation where a messages will be forwarded in such a way that the
+In any situation where a message will be forwarded in such a way that the
 mf= on the outgoing message is such that the "chain of custody"
 would be broken then the Signer MUST generate an extra DKIM2-Signature
 header field that causes values to match, i.e. a record must be fabricated
