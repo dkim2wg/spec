@@ -1,7 +1,7 @@
 ---
 title: DomainKeys Identified Mail Signatures v2 (DKIM2)
 abbrev: DKIM2 Signatures
-docname: draft-ietf-dkim-dkim2-spec-00
+docname: draft-ietf-dkim-dkim2-spec-01
 submissionType: IETF
 number:
 date:
@@ -139,13 +139,12 @@ ARC protocol ([RFC8617]).
 
 Syntax descriptions use Augmented BNF (ABNF) [RFC5234].
 
-This document uses JSON [RFC8259] for collections of related information.
-The JSON objects are then base64 encoded and placed into Tag=Value
-lists. This is done to avoid significant complexities in parsing
-Tag=Value lists (see {{tagvaluelists}}) and to simplify the way in
-which algorithmic
-agility is provided. Unrecognised fields within JSON objects MUST
-be ignored.
+This document uses JSON [RFC8259] to encode the "recipes" which
+record changes made to a message header fields or body.
+The JSON objects are then base64 encoded. This means that a
+standard JSON parser can be used to create what may be quite
+complex data structures. Unrecognised fields within JSON objects
+MUST be ignored.
 
 ## Signer
 
@@ -199,12 +198,6 @@ The entity that creates and sends the initial form of a message.
 The Originator adds the first Message-Instance header field (m=1) and
 the first DKIM2-Signature header field (i=1) to the message.
 
-## Tag
-
-A named element within a tag-list (see {{tagvaluelists}}).  A tag
-consists of a tag-name and a tag-value separated by an equals sign.
-Tags are separated by semicolons within the tag-list.
-
 ## Header Field
 
 As defined in [RFC5322], a header field is a single logical line in
@@ -212,6 +205,13 @@ the message header consisting of a field name, a colon, and a field
 body (value).  In this document "header field" always refers to a
 single field; "header fields" (plural) refers to multiple fields.
 The unqualified term "header" is avoided to prevent ambiguity.
+
+## Tag
+
+A named element within a header field (see {{hfMessageInstance}}
+and {{hfDKIM2signature}}).  A tag
+consists of a tag-name and a tag-value separated by an equals sign.
+Tags are separated by semicolons within the header field.
 
 ## Message Body
 
@@ -728,66 +728,27 @@ to (Verifiers) the value of the "h=" tag of the Message-Instance header
 field that is being created/verified. If multiple hashes are calculated
 then multiple entries within the "h=" value will be inserted/compared.
 
-# Tag=Value Lists {#tagvaluelists}
-
-DKIM2 uses a simple "tag=value" syntax in the Message-Instance and
-DKIM2-Signature header fields, as well as in domain signature records
-(see [DKIMKEYS]).
-
-Values are a series of strings containing either text or "base64"
-text (as defined in [RFC2045], Section 6.8). The name of the tag will
-determine the encoding and structure of each value.
-
-Formally, the ABNF syntax rules are as follows:
-
-    tag-list  =  tag-spec *( ";" tag-spec ) [ ";" ]
-    tag-spec  =  [FWS] tag-name [FWS] "=" [FWS] tag-value [FWS]
-    tag-name  =  ALPHA *(ALPHA / DIGIT / "_")
-    tval      =  %x21-3A / %x3C-7E
-                      ; not SEMICOLON
-    tag-value =  [ tval *( 1*(WSP / FWS) tval ) ]
-                      ; Prohibits WSP and FWS at beginning and end
-
-Note that WSP is allowed anywhere around tags.  In particular, any
-WSP after the "=" and any WSP before the terminating ";" is not part
-of the value; however, WSP inside the value is significant.
-Semicolon (";") characters MUST NOT occur in the tag value, since
-that separates tag-specs.
-
-Tags MUST be interpreted in a case-sensitive manner.  Values MUST be
-processed as case sensitive unless the specific tag description of
-semantics specifies case insensitivity.
-
-Tags with duplicate names MUST NOT occur within a single tag-list; if
-a tag name does occur more than once, the entire tag-list is invalid.
-
-Whitespace within a value MUST be retained unless explicitly excluded
-by the specific tag description.
-
-Tag=value pairs that represent the default value MAY be included to
-aid legibility.
-
-Unrecognized tags MUST be ignored.
-
-Tags that have an empty value are not the same as omitted tags.  An
-omitted tag is treated as having the default value; a tag with an
-empty value explicitly designates the empty string as the value.
-
 # The Message-Instance Header Field {#hfMessageInstance}
 
 A Message-Instance header field documents the current contents of
 the message and, in the case of a Reviser, records any relevant
 changes that have been made to the incoming message.
 
-The Message-Instance header field is a tag-list as described in
-{{tagvaluelists}}. The tags are described below.
+The Message-Instance header field is a list of tag values as described
+below. The m= and h= tags MUST be present. The r= tag is optional.
 
-The m= and h= tags MUST be present. The r= tag is optional.
+The tag identifiers (before the = sign) MUST be treated as case
+insignificant, the tag value (after the = sign) is case significant. The
+tags may appear in any order, but MUST be only one of each kind. Unknown
+tags, for extensions, MUST be ignored.
 
 ABNF:
 
-    mi-field    = "Message-Instance:" [FWS] mi-tag-list
-    mi-tag-list = mi-m-tag ";" mi-h-tag [";" mi-r-tag] *(";" tag-spec)
+    mi-field    = "Message-Instance:" mi-tag-list
+    mi-tag-list = *([FWS] mi-tag [FWS] ";" [FWS])
+    mi-tag      = mi-m-tag / mi-h-tag / mi-r-tag / x-tag
+    x-tag       = ALPHA *(ALPHA / DIGIT / "_") "=" %x21-3A / %x3C-7E
+                  ; for extension
 
 ## m= the revision number of the Message-Instance header field
 
@@ -828,28 +789,28 @@ ABNF:
 # The DKIM2-Signature Header Field {#hfDKIM2signature}
 
 The signature of the email is stored in a DKIM2-Signature header
-field.  This header field contains all of the signature and key-
-fetching data.  The DKIM2-Signature value is a tag-list as described
-in {{tagvaluelists}}.
+field.  This header field contains tag values that provide the
+signature and key-fetching data. The i=, m=, t=, mf=, rt=, d=
+and s= tags MUST be present. The other tags are optional.
 
-The tags are described below. It will be noted that we
-have not included a version number.  Experience from IMF onwards shows
-that it is essentially impossible to change version numbers.
-If it becomes necessary to change DKIM2 in the sort of incompatible way that
-a v=2 / v=3 version number would support, it is expected that header
-fields will be labelled as DKIM3 instead.
-
-The i=, m=, t=, mf=, rt=, d= and s= tags MUST be present.
-The other tags are optional.
+The tag identifiers (before the = sign) MUST be treated as case
+insignificant, the tag value (after the = sign) is case significant. The
+tags may appear in any order, but MUST be only one of each kind. Unknown
+tags, for extensions, MUST be ignored.
 
 ABNF:
 
-    sig-field    = "DKIM2-Signature:" [FWS] sig-tag-list
-    sig-tag-list = sig-i-tag ";" sig-m-tag ";" sig-t-tag ";"
-                   sig-mf-tag ";" sig-rt-tag ";"
-                   sig-d-tag ";" sig-s-tag
-                   [";" sig-n-tag] [";" sig-f-tag]
-                   *(";" tag-spec)
+    sig-field    = "DKIM2-Signature:" sig-tag-list
+    sig-tag-list = *([FWS] sig-tag [FWS] ";" [FWS])
+    sig-tag      = sig-i-tag / sig-m-tag / sig-t-tag / sig-mf-tag /
+                   sig-rt-tag / sig-d-tag / sig-s-tag / sig-n-tag /
+                   sig-f-tag / x-tag
+
+It will be noted that we have not included a version number.  Experience
+from IMF onwards shows that it is essentially impossible to change
+version numbers. If it becomes necessary to change DKIM2 in the sort
+of incompatible way that a v=2 / v=3 version number would support,
+it is expected that header fields will be labelled as DKIM3 instead.
 
 ## i= the sequence number of the DKIM2-Signature header field
 
@@ -1061,8 +1022,10 @@ MUST be added.
 If hashing the message body or relevant header fields does not
 give the same hash values as those recorded in the highest version
 (m=) Message-Instance header field then a new Message-Instance
-header field MUST be added.
-This Message-Instance header field MUST contain "recipes" to be able to
+header field MUST be added and if they are the same a new
+Message-Instance header field SHOULD NOT be added.
+
+A Message-Instance header field MUST contain "recipes" to be able to
 recreate the message corresponding to the hash values in the
 currently highest numbered Message-Instance header field, or a
 null recipe to indicate that recreating the previous version
@@ -1110,11 +1073,13 @@ that documents the mail being passed from one domain to another.
 It will be noted that the
 creation of this extra header field will require the Signer to have access
 to a DKIM2 private key associated with a domain in the RCPT TO entry. This is
-often achieved by the Signer creating the private key and never sharing it.
-The Signer gives the public key (and selector value) to the domain owner who
-creates an appropriate DNS entry. Alternatively, the Signer creates a public
+often achieved by the Signer creating the private key and never sharing it and
+then taking one of two approaches to publishing the public key.
+The first is to provide the public key (and selector value) to the domain owner
+who creates an appropriate DNS entry. The alternative is for the Signer 
+to create a public
 key DNS entry within a part of the DNS that they control and the domain owner
-merely needs to publish a CNAME pointing at this.
+publishes a CNAME pointing at this.
 
 ##  The Relaxed Domain Match Algorithm {#relaxed-domain-match}
 
@@ -1163,7 +1128,7 @@ is no difficulty if the hash value is inordinately long, or is
 not emitted by the cryptographic routine being used.
 
 The signature algorithm MUST apply the following steps
-in the order given (which are consistent with the steps
+in the order given (which are not quite the same as the steps
 undertaken in calculating header hashes).
 
 *  Convert all relevant header field names (not the header field values) to
@@ -1188,198 +1153,41 @@ undertaken in calculating header hashes).
    one that this system is creating) with all tags present except
    that the signature value(s) within the (s=) value are set to
    the null string (""). The incomplete header field MUST be
-   unfolded and have spaces removed in just the same way as the
+   unfolded, MUST have a trailing CRLF and MUST have spaces removed
+   in just the same way as the
    complete header fields being processed.
 
 *  The concatenated header fields are then fed to the signature
-   algorithm(s). Once all the values are available the null strings
+   algorithm(s). Once all the values are available the null 
+   signature value strings
    are replaced by the base64 values of the signatures.
 
-# Verifier Actions {#verifier_actions}
+# Verification Requirements
 
-This section discusses the actions taken by a Verifier. In essence
-this will involve repeating all the actions taken by a Signer to
-produce a Message-Instance or DKIM2-Signature header field. To
-avoid a lot of repetition these actions will not be spelled out
-in detail. Once a hash value has been calculated it is then
-compared with the value reported by the Signer, or the Signer's
-public key is used to determine whether a signature that has
-been provided is correct.
+The details of verification appear in {{verifier_actions}} below.
+This section considers when verification should be performed and
+how thorough it needs to be.
 
-## Output States
-
-A verification ends in one of three states, which this document
-refers to as follows:
-
-SUCCESS:   a successful verification
-
-PERMFAIL:  a permanent, non-recoverable error such as a signature
-   verification failure or mismatched hash value
-
-TEMPFAIL:  a temporary, recoverable error such as a DNS query timeout
-
-A Verifier MAY cease verifying once a single failure is detected.
-
-Verifiers wishing to communicate the results of verification to other
-parts of the mail system may do so in whatever manner they see fit.
-For example, implementations might choose to add an email header
-field to the message before passing it on.  Any such header field
-SHOULD be inserted before any existing DKIM2-Signature or pre-existing
-authentication status header fields in the header field block.  The
-Authentication-Results: header field ([RFC8601]) MAY be used for this
-purpose. It should be noted that any "Authentication-Results" header
-field will count as a modification to the email if any further
-DKIM2-Signature header fields are to be generated.
-
-## Validation of Tag Fields
-
-Implementers MUST meticulously validate the format and values of
-Message-Instance and DKIM2-Signature header fields. Errors SHOULD
-be treated as a PERMFAIL (signature syntax error).  Being "liberal in what
-you accept" is an inappropriate strategy.
-
-Note, however, that the presence of unknown tags in a DKIM2-Signature
-header field (or a Message-Instance header field), MUST NOT cause a
-verification to fail.
-
-Verifiers MAY return PERMFAIL ("signature expired") if it is more than
-14 days since the timestamp recorded in the "t=" tag of a DKIM2-Signature
-header field.
-
-## Fetching the Public Key {#verifier_publickey}
-
-The public key of a signature is needed to complete the verification
-process. Details of key management and representation are described in
-{{key_management}} and [DKIMKEYS].  The Verifier MUST validate the key record and MUST
-ignore any public key records that are malformed.
-
-When validating a message, a Verifier MUST perform the following
-steps in a manner that is semantically the same as performing them in
-the order indicated; in some cases, the implementation may
-parallelize or reorder these steps, as long as the semantics remain
-unchanged:
-
-1.  The Verifier retrieves the public key as described in {{key_management}}
-    using the "d=" tag, and the selector from within the JSON object
-    in the "s" tag. If there is more than one signature within
-    the JSON object then these steps are repeated for each one.
-
-1.  If the query for the public key fails to complete, the Verifier
-    MAY seek a later verification attempt by returning TEMPFAIL ("key
-    unavailable").
-
-1.  If the query for the public key fails because the corresponding
-    key record does not exist, the Verifier MUST return
-    PERMFAIL ("no key for signature").
-
-1.  If the query for the public key returns multiple key records, then
-    the return PERMFAIL ("more than one key returned" since this
-    is not permitted by [DKIMKEYS]).
-
-1.  If the result returned from the query does not adhere to the
-    format defined in the DKIM key specification [DKIMKEYS], the Verifier MUST ignore
-    the key record and return PERMFAIL ("key syntax error").  Verifiers
-    are urged to validate the syntax of key records carefully to
-    avoid attacks.  In particular, the Verifier MUST ignore
-    keys with a version code ("m=" tag) that they do not implement.
-
-1.  If the public key data (the "p=" tag) is empty, then this key has
-    been revoked and the Verifier MUST treat this as a failed
-    signature check and return PERMFAIL ("key revoked").  There is no
-    defined semantic difference between a key that has been revoked
-    and a key record that has been removed.
-
-1.  If the public key data is not suitable for use with the algorithm
-    specified in the DKIM-Signature header field, the Verifier MAY immediately
-    return PERMFAIL ("inappropriate key algorithm"). However, the tag fields
-    in the public key record that would cause this to occur are now deprecated
-    so DKIM2 implementations MAY ignore these tag fields altogether.
-
-1.  If the "h=" tag exists in the public key record and the hash
-    algorithm implied by the type of signature being checked is not
-    included in the contents of the "h=" tag, the
-    Verifier MUST ignore the key record and return PERMFAIL
-    ("inappropriate hash algorithm").
-
-## Perform the Signature Verification Calculation
-
-Verifying a signature consists of actions semantically equivalent to the
-following steps:
-
-1.  Prepare a canonicalized version of the Message-Instance and DKIM2-Signature
-    header fields as described in {{calculate-signature}}. Note that this
-    canonicalized version does not actually replace the original content.
-
-1.  Based on the algorithm and selector indicated s= tag value determine
-    whether the signature of the highest numbered DKIM2-Signature field
-    validates. The signature value(s) themselves will need to be removed
-    to correspond with what was actually signed. If the signature is incorrect
-    the Verifier SHOULD ignore the
-    signature and return PERMFAIL ("signature did not verify").
-
-1.  If there is more than one signature provided then they MUST all be
-    checked if the verifier is able to do so. If any signature fails then
-    an error SHOULD be reported. If all signatures that can be checked fail
-    then PERMFAIL MUST be reported.
-
-1.  If some signatures fail and other pass then the error that is
-    reported should provide that information (e.g. PERMFAIL "rsa-sha256
-    signature passed, ed25519-sha256 signature failed").
-
-The reasoning for requiring that all signatures pass is that if a signature
-scheme has recently become deprecated because it is known to be cryptographically
-flawed then Signers will use a second (unbroken) signature scheme. However, such
-a Signer may still provide the other signature for the benefit of Verifiers
-that have yet to upgrade -- reasoning perhaps that attacks are too expensive
-to be a very significant security issue. A Verifier that determines that
-one signature passes whilst the other fails may well be in a position to
-prevent an attack.
-
-## Check Most Recent Signature and Hashes for the Message {#verifier_extract}
+## Check Most Recent Signature and Hashes for the Message
 
 A Verifier SHOULD check the validity of the most recently applied
 (highest numbered i= value) DKIM2-Signature header field
-and the associated (m=)
-Message-Instance before accepting an email. If this check
-does not pass then a Delivery Status Notification for the email MUST
+and the associated (m=) Message-Instance before accepting an email.
+
+If these checks
+do not pass then a Delivery Status Notification (DSN) for the email MUST
 NOT be generated thereafter -- hence the best strategy, if the email
 is not wanted, is to reject it (with a 5xx error code) whilst the
 relevant SMTP conversation is still ongoing. If the check gives
 a TEMPFAIL result then a 4xx error code SHOULD be used to allow the
 sending MTA to understand the situation.
 
-A Verifier SHOULD check that the MAIL FROM value in the most
-recent DKIM2-Signature header field is identical to the [RFC5321]
-MAIL FROM values of the SMTP protocol interaction that
-delivered the email to the Verifier. A Verifier SHOULD also
-check that all of the [RFC5321] RCPT TO values from the SMTP
-protocol occur in the most recent DKIM2-Signature header field.
-The values MUST BE
-put into lower-case before doing these checks. Note that these
-check MUST NOT use the relaxed domain match algorithm.
-
-A Verifier SHOULD check that there is a relaxed domain match
-(see {relaxed-domain-match}) between the signing domain of the
-most recently applied DKIM2-Signature header field and the
-mf= value in that header field.
-
-A Verifier SHOULD also check the chain of custody for the message
-(see {chain-of-custody}) is valid, using a relaxed domain match (see
-{{relaxed-domain-match}}).
-
-If checking these signatures (all but the most recently applied)
-gives the status TEMPFAIL then it may be possible for the Verifier
-to determine the validity of the signature at a later time. If the
-TEMPFAIL status continues to occur, or if a PERMFAIL is encountered
-then this MAY be reported to the sending MTA by means of a Delivery
-Status Notification. However the non-validating email MUST NOT be
-forwarded to any MTA outside of the current organisation.
+If the checks do pass and it is later determined that the email
+is unacceptable for any reason then a DSN MAY be created and
+passed to the system that delivered the email. The details of
+this procedure appear in {{bounce}}.
 
 ## Checking the Message-Instance Header Fields
-
-The highest numbered (m=) Message-Instance header field SHOULD
-be checked to determine that the message body has not been
-altered since the body hash was calculated.
 
 If the message has been modified since its original creation then
 the Message-Instance header fields will enable a Verifier to determine
@@ -1418,16 +1226,214 @@ SHOULD use a 550/5.7.x reply code.
 Where the Verifier is integrated within the MTA and it is not
 possible to fetch the public key, perhaps because the key server is
 not available, a temporary failure message MAY be generated using a
-451/4.7.5 reply code, such as:
-
-451 4.7.5 Unable to verify signature - key server unavailable
+451/4.7.5 reply code.
 
 Temporary failures such as inability to access the key server or
 other external service are the only conditions that SHOULD use a 4xx
 SMTP reply code.  In particular, cryptographic signature verification
 failures MUST NOT provoke 4xx SMTP replies.
 
-#   Delivery Status Notifications in the DKIM2 ecosystem {#bounce}
+# Verifier Actions {#verifier_actions}
+
+This section discusses the detail of the actions taken by a
+Verifier. In essence
+this will involve repeating all the actions taken by a Signer to
+produce a Message-Instance or DKIM2-Signature header field. To
+avoid a lot of repetition these actions will not be spelled out
+in detail. Once a hash value has been calculated it is then
+compared with the value reported by the Signer, or the Signer's
+public key is used to determine whether a signature that has
+been provided is correct.
+
+When a Verifier is determining whether a particular DKIM2-Signature
+header field it MUST consider the state of the message when that
+header field was added to the message. That means it MUST first apply
+all relevant recipes to reconstruct the body and header fields and it
+MUST ignore any Message-Instance and DKIM2-Signature fields that
+were added after that point.
+
+## Output States
+
+For compatibility with the Authentication-Results header field defined
+in [RFC8601] a verification will result in one of four states: 
+
+PASS:  The message was successfully verified.
+
+FAIL:  The message could be verified but a hash or signature was not
+       correct.
+
+PERMERROR:  The message could not be verified due to some error that
+      is unrecoverable, such as a required header field being absent
+      or malformed.
+
+TEMPERROR:  The message could not be verified due a temporary
+      inability to retrieve a public key. A later attempt may
+      produce a different.
+
+A Verifier MAY cease verifying once a single failure is detected.
+
+Verifiers wishing to communicate the results of verification to other
+parts of the mail system may do so in whatever manner they see fit. If
+they wish to provide a human-readable string to describe a failure
+to verify (any state except PASS) then in order to provide the
+maximum possible assistance to senders they SHOULD use the text
+strings specified in this document. These human-readable messages
+are described with m=`<x>` or tag=`<y>` placeholders, the `<x>` and `<y>` MUST
+be replaced with the relevant ordinal or tag name (without the < and
+> characters). Similarly `<value>` MUST be replaced by a relevant
+string for the particular message.
+
+If the verification is being performed during an SMTP protocol
+conversation the human-readable string SHOULD be part of the
+5xx or 4xx response string.
+
+If the results of the verification are being communicated in a
+Delivery Status Notification message ({{RFC3461}}) the
+human-readable string should be included.
+
+If, by local policy, a system wishes to accept a message which
+has failed authentication it might choose to add an email header
+field to the message before passing it on.  Any such header field
+SHOULD include the human-readable string and 
+SHOULD be inserted before any existing DKIM2-Signature or pre-existing
+authentication status header fields in the header field block.  The
+Authentication-Results: header field ([RFC8601]) MAY be used for this
+purpose. It should be noted that any "Authentication-Results" header
+field will count as a modification to the email if any further
+DKIM2-Signature header fields are to be generated.
+
+## Ensure that the DKIM2 Header Fields are Valid
+
+Verifiers MUST meticulously validate the format and values of all
+relevant Message-Instance and DKIM2-Signature header fields. It MUST
+also ensure that all required instances of these header fields are
+present and that all required tags are present. Recall however
+that unknown tags MUST be ignored.
+
+As a special case, there MUST not be a Message-Instance field
+with a higher m= value than occurs in any DKIM2-Signature field.
+
+Possible errors:
+
+    PERMERROR Message-Instance m=<x> missing
+    PERMERROR Message-Instance m=<x> syntax error
+    PERMERROR Message-Instance m=<x> tag=<y> missing
+    PERMERROR Message-Instance m=<x> is not signed
+    PERMERROR DKIM2-Signature i=<x> missing
+    PERMERROR DKIM2-Signature i=<x> syntax error
+    PERMERROR DKIM2-Signature i=<x> tag=<y> missing
+
+## Check the timestamps
+
+Verifiers SHOULD return a failure it is more than 14 days since the
+timestamp recorded in the "t=" tag of any DKIM2-Signature header field.
+
+Possible errors:
+
+    PERMERROR DKIM2-Signature i=<x> signature expired
+
+## Check the Chain-of-Custody
+
+As explained in {{chain-of-custody}} a Verifier MUST check an exact
+match between the MAIL FROM and RCPT TO parameters used when delivering
+a message and the values found in the mf= and rt= tags of the highest
+numbered DKIM2-Signature header field. There may be extra values
+in the rt= value, but all RCPT TO values actually used for
+delivery MUST be present.
+
+The values of domains MUST BE put into lower-case before doing these
+checks. As is usual in email protocols the case of the local part of
+an email address is assumed to matter. Note that these checks MUST NOT
+use the relaxed domain match algorithm.
+
+A Verifier SHOULD check that there is a relaxed domain match
+(see {relaxed-domain-match}) between the signing domain of the
+most recently applied DKIM2-Signature header field and the
+mf= value in that header field.
+
+Possible errors:
+
+    PERMERROR: MAIL FROM <value> did not match
+    PERMERROR: RCPT TO <value> did not match
+    PERMERROR: MAIL FROM and d= do not match
+
+## Fetch the Public Key
+
+The public keys of all the signatures in DKIM2-Signature fields are
+needed to complete the verification process. Details of key management and
+representation are described in {{key_management}} and [DKIMKEYS].
+The Verifier MUST validate the key record and MUST not use any public
+key records that are malformed.
+
+Note that DNS timeouts MUST be reported as TEMPERROR but a DNS
+result that indicates the key is absent MUST be reported as a
+PERMERROR. Additionally, as [DKIMKEYS] makes clear, if more than
+one record is returned this is an error. The human-readable error
+message SHOULD provide the selector value so that it is clear which
+key has caused a problem.
+
+Note that [DKIMKEYS] has retired the h= field and DKIM2 implementations
+MUST ignore this tag if it is present.
+
+Possible errors:
+
+    TEMPERROR: DKIM2-Signature i=<x> public key <value> could not be fetched
+    PERMERROR: DKIM2-Signature i=<x> public key <value> does not exist
+    PERMERROR: DKIM2-Signature i=<x> public key <value> has multiple records
+    PERMERROR: DKIM2-Signature i=<x> public key <value> has a syntax error
+    PERMERROR: DKIM2-Signature i=<x> public key <value> algorithm mismatch
+    PERMERROR: DKIM2-Signature i=<x> public key <value> has been revoked
+
+## Perform the Signature Verification Calculation
+
+Verifying a signature consists of actions semantically equivalent to the
+following steps:
+
+1.  Prepare a canonicalized version of the Message-Instance and DKIM2-Signature
+    header fields as described in {{calculate-signature}}. The signature value(s)
+    themselves will need to be removed to correspond with what was actually
+    signed. Note that this canonicalized version does not actually replace
+    the original content.
+
+1.  Use the relevant public key value(s) to check the signature(s).
+
+1.  If there is more than one signature provided then they MUST all be
+    checked if the Verifier is able to do so. If any signature fails then
+    an error SHOULD be reported. If all signatures that can be checked fail
+    then PERMFAIL MUST be reported.
+
+1.  If some signatures fail and other pass then any error that is
+    reported should provide that information (e.g. PERMFAIL "rsa-sha256
+    signature passed, ed25519-sha256 signature failed").
+
+The reasoning for requiring that all signatures pass is that if a signature
+scheme has recently become deprecated because it is known to be cryptographically
+flawed then Signers will use a second (unbroken) signature scheme. However, such
+a Signer may still provide the other signature for the benefit of Verifiers
+that have yet to upgrade -- reasoning perhaps that attacks are too expensive
+to be a very significant security issue. A Verifier that determines that
+one signature passes whilst the other fails may well be in a position to
+prevent an attack.
+
+Possible errors:
+
+    FAIL: DKIM2-Signature i=<x> public key <value> incorrect signature
+
+## Validating Body and Header hashes
+
+Verifying a hash value requires a Verifier to repeat the hash calculation
+performed by the Signer as set out in {{computing-body-hash}}
+and {{computing-body-hash}}. The values can then be directly compared.
+
+Since there may be more than one hash algorithm given the human-readable
+error message SHOULD indicate which algorithm's result failed to match.
+
+Possible errors:
+
+    FAIL: Message Instance m=<x> header hash <value> mismatch
+    FAIL: Message Instance m=<x> body hash <value> mismatch
+
+# Delivery Status Notifications in the DKIM2 ecosystem {#bounce}
 
 In the DKIM2 ecosystem, when a message cannot be delivered then
 this is reported to the sending machine by means of an {{RFC5321}}
@@ -1557,6 +1563,13 @@ be received by the Verifier rather than in some local or internal form.
 
 Changes from Earlier Versions
 =============================
+
+draft-ietf-dkim-dkim2-spec-01
+
+Removed definition of tag-list and placed relevant text in the two
+header field definitions. Untangled the description of what needs
+to be verified from the description of how to verify and provided
+a list of human-readable strings to generate for errors.
 
 draft-ietf-dkim-dkim2-spec-00
 
