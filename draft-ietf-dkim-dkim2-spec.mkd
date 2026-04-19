@@ -1566,10 +1566,11 @@ Changes from Earlier Versions
 
 draft-ietf-dkim-dkim2-spec-01
 
-Removed definition of tag-list and placed relevant text in the two
-header field definitions. Untangled the description of what needs
-to be verified from the description of how to verify and provided
-a list of human-readable strings to generate for errors.
+Additions to terninology. Improved ABNF. Removed definition of tag-list
+and placed relevant text in the two header field definitions. Untangled 
+he description of what needs to be verified from the description of how
+to verify and provided a list of human-readable strings to generate for
+errors.
 
 draft-ietf-dkim-dkim2-spec-00
 
