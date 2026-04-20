@@ -1081,6 +1081,14 @@ to create a public
 key DNS entry within a part of the DNS that they control and the domain owner
 publishes a CNAME pointing at this.
 
+If an MTA does not change anything in the message which would require
+a new Message-Instance header field and it is going to send it onwards
+to a system that be able to verify the existing message (that is no
+changes are made to the MAIL FROM and RCPT TO values) and there is no
+other reason to add a DKIM2-Signature header field then the MTA MAY
+choose not to add one. This means that an essentially transparent
+SMTP forwarding system need not be made "DKIM2 aware". 
+
 ##  The Relaxed Domain Match Algorithm {#relaxed-domain-match}
 
 To assist in addressing the "DKIM replay" problem DKIM2 provides a
