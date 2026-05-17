@@ -1,7 +1,7 @@
 ---
 title: DomainKeys Identified Mail Signatures v2 (DKIM2)
 abbrev: DKIM2 Signatures
-docname: draft-ietf-dkim-dkim2-spec-01
+docname: draft-ietf-dkim-dkim2-spec-02
 submissionType: IETF
 number:
 date:
@@ -316,8 +316,10 @@ The following ABNF tokens are used elsewhere in this document:
     base64string =  ALPHADIGITPS *(ALPHADIGITPS) [[FWS] "=" [[FWS] "="]]
 
 Note that base64strings are defined in [RFC4648], but that document
-does not contain any ABNF. Note that a base64string MUST be padded
-with trailing = characters if needed.
+does not contain any ABNF. A base64string MUST be padded with zero
+bits and trailing = characters provided if needed. This allows
+implementations to compare base64string values without decoding
+them.
 
 Note that the definition of base64string allows
 for the presence of FWS, which simplifies folding header fields
@@ -430,9 +432,7 @@ within a JSON object with the schema:
       "type": "object",
       "properties": {
         "h": {
-          "description": [ "recipes to recreate header fields",
-            "keys are header field names matched case-insensitively",
-            "and there MUST NOT be keys that differ only in case"],
+          "description": "recipes to recreate header fields",
           "oneOf": [
             {
               "description": "per-field-name recipe arrays",
@@ -444,7 +444,7 @@ within a JSON object with the schema:
               "description": "previous header state cannot be recreated",
               "type": "null"
             }
-          ]
+          ],
         },
         "b": {
           "description": "recipes to recreate the body",
@@ -456,14 +456,6 @@ within a JSON object with the schema:
             {
               "description": "previous body state cannot be recreated",
               "type": "null"
-            },
-            {
-              "description": "body was truncated (DSN)",
-              "type": "object",
-              "properties": {
-                "z": { "type": "boolean", "const": true }
-              },
-              "required": ["z"], "additionalProperties": false
             }
           ]
         }
@@ -526,7 +518,8 @@ determine, by seeing which entity makes this declaration, that
 this is acceptable to them because, for example, that entity
 is providing a contractually arranged service.
 
-Matching of header field names is always done without regard to case.
+Matching of header field names is always done without regard to case
+and there MUST NOT be JSON keys that differ only in case.
 
 If a header field name is not present in the JSON object then all
 header fields with that header field name are to be retained.
@@ -609,9 +602,6 @@ appended and the resultant string is emitted. The text strings MUST NOT
 contain CR or LF characters. If a string is empty then just
 a CRLF is emitted.
 
-A "z" step has the form {"z": true} and indicates that the
-body was truncated (see the DSN handling in {{bounce}}).
-
 # Message Hash Values {#messagehashes}
 
 A set of cryptographic "hashes" are used to record the current
@@ -662,6 +652,16 @@ is correct.
    These are Trace headers as described in [RFC5321]
    and serve only to document details of the SMTP transmission process.
 
+   When calculating the header field hash any Authentication-Results
+   header fields MUST be ignored. These header fields are defined
+   in [RFC8601] where it is made clear that their contents are only
+   intended for use within the the ""trust boundary" of an
+   Administrative Management Domain". As they are only used within
+   that trust boundary there has been no need to secure them
+   cryptographically and given how they may be added or removed
+   as messages cross trust boundaries it is inconvenient and
+   unnecessary for DKIM2 to sign them.
+
    When calculating the header field hash any header field with
    a header field name starting with "X-" MUST be ignored.
    Currently deployed email systems use these fields as
@@ -669,19 +669,19 @@ is correct.
    other systems and it considerably simplifies reporting
    on changes to header fields to ignore them.
 
-   When calculating the header field hash any "Message-Instance" or
-   "DKIM2-Signature" header fields MUST be ignored. These header
-   fields will be included in the hash value that will be signed
-   by a DKIM2-Signature header field and it simplifies implementations
-   if they are not included twice, especially when determining
-   whether all modifications to a message have been correctly declared.
-
    When calculating the header field hash any "DKIM-Signature" header
    fields and any header fields whose field name starts with "ARC-"
    MUST be ignored. Not including
    DKIM1 and ARC signatures means that systems that wish to add other
    types of signature as well as a DKIM2 signature are free to do this
    in any convenient order.
+
+   When calculating the header field hash any "Message-Instance" or
+   "DKIM2-Signature" header fields MUST be ignored. These header
+   fields will be included in the hash value that will be signed
+   by a DKIM2-Signature header field and it simplifies implementations
+   if they are not included twice, especially when determining
+   whether all modifications to a message have been correctly declared.
 
 *  Convert all header field names (not the header field values) to
    lowercase.  For example, convert "SUBJect: AbC" to "subject: AbC".
@@ -735,7 +735,9 @@ the message and, in the case of a Reviser, records any relevant
 changes that have been made to the incoming message.
 
 The Message-Instance header field is a list of tag values as described
-below. The m= and h= tags MUST be present. The r= tag is optional.
+below. The m= and h= tags MUST be present. The r= tag is optional. Note
+that the syntax is such that semi-colons will never occur within
+tags or values, they only act as a separators.
 
 The tag identifiers (before the = sign) MUST be treated as case
 insignificant, the tag value (after the = sign) is case significant. The
@@ -747,8 +749,11 @@ ABNF:
     mi-field    = "Message-Instance:" mi-tag-list
     mi-tag-list = *([FWS] mi-tag [FWS] ";" [FWS])
     mi-tag      = mi-m-tag / mi-h-tag / mi-r-tag / x-tag
-    x-tag       = ALPHA *(ALPHA / DIGIT / "_") "=" %x21-3A / %x3C-7E
-                  ; for extension
+                  ; x-tag is for extension
+    x-tag       = x-tag-name [FWS] "=" [FWS] [x-tag-value]
+    x-tag-name  = ALPHA *(ALPHA / DIGIT / "_")
+    x-tag-char  = %x21-3A / %x3C-7E
+    x-tag-value = x-tag-char *([FWS] x-tag-char)
 
 ## m= the revision number of the Message-Instance header field
 
@@ -779,7 +784,7 @@ hash value. Calculating the hash values is explained in {{messagehashes}}.
 
 ABNF:
 
-    mi-h-tag    = %x68 [FWS] "=" hash-set *("," hash-set )
+    mi-h-tag    = %x68 [FWS] "=" hash-set *("," hash-set)
     hash-set    = [FWS] hash-name [FWS] ":" header-hash ":" body-hash
     hash-name   = "sha256" / x-hash-name
     header-hash = base64string
@@ -791,7 +796,9 @@ ABNF:
 The signature of the email is stored in a DKIM2-Signature header
 field.  This header field contains tag values that provide the
 signature and key-fetching data. The i=, m=, t=, mf=, rt=, d=
-and s= tags MUST be present. The other tags are optional.
+and s= tags MUST be present. The other tags are optional. Note
+that the syntax is such that semi-colons will never occur within
+tags or values, they only act as a separators.
 
 The tag identifiers (before the = sign) MUST be treated as case
 insignificant, the tag value (after the = sign) is case significant. The
@@ -986,9 +993,14 @@ MUST NOT allow any of the copies it creates to be forwarded on to any
 MTA outside its control.
 
 "donotmodify": this Signer requests that the message not be modified from
-the form in which it is sent. A system that, by local policy, ignores this
-request MUST NOT allow the message to be forwarded on to any
-MTA outside its control.
+the form in which it is sent. If this request is honored then the body
+MUST NOT be changed in any way that alters the body hash and header fields
+MUST NOT be removed or changed. It is permissible to add header fields
+but a subsequent receiver SHOULD consider whether such header fields
+have an impact on how the message will be viewed or responded to and
+MAY reject the message if it has concerns. A  system that, by local
+policy, ignores this request and makes other changes MUST NOT allow
+the message to be forwarded on to any MTA outside its control.
 
 "feedback": this Signer requests feedback about how this message is handled
 during delivery and thereafter. This document does not describe what such
@@ -1331,7 +1343,7 @@ Possible errors:
     PERMERROR DKIM2-Signature i=<x> syntax error
     PERMERROR DKIM2-Signature i=<x> tag=<y> missing
 
-## Check the timestamps
+## Check the Timestamps
 
 Verifiers SHOULD return a failure it is more than 14 days since the
 timestamp recorded in the "t=" tag of any DKIM2-Signature header field.
@@ -1427,7 +1439,7 @@ Possible errors:
 
     FAIL: DKIM2-Signature i=<x> public key <value> incorrect signature
 
-## Validating Body and Header hashes
+## Validating Body and Header Hashes
 
 Verifying a hash value requires a Verifier to repeat the hash calculation
 performed by the Signer as set out in {{computing-body-hash}}
@@ -1441,7 +1453,22 @@ Possible errors:
     FAIL: Message Instance m=<x> header hash <value> mismatch
     FAIL: Message Instance m=<x> body hash <value> mismatch
 
-# Delivery Status Notifications in the DKIM2 ecosystem {#bounce}
+## Check if donotmodify and donotexplode Requests Were Honored
+
+If a verifier receives a message with a nonotmodify request and a later
+hop has altered the message body or removed or altered header fields
+then the message SHOULD be rejected.
+
+If a verifier receives a message with a donotexplode request and
+a later hop has indicated that it has exploded the message then
+the message SHOULD be rejected.
+
+Possible errors:
+
+    FAIL: Message has been modified despite a donotmodify request
+    FAIL: Message has been exploded despite a donotexplode request
+
+# Delivery Status Notifications in the DKIM2 Ecosystem {#bounce}
 
 In the DKIM2 ecosystem, when a message cannot be delivered then
 this is reported to the sending machine by means of an {{RFC5321}}
@@ -1455,7 +1482,7 @@ is achieved by using the mf= tag from the highest numbered
 DKIM2-Signature field. If this field is null ("mf=<>") then a DSN
 MUST NOT be sent.
 
-## DSN contents
+## DSN Contents
 
 As set out in {{RFC3461}}, the DSN has a top-level MIME part of
 type `multipart/report`. Among other things, that MIME part must
@@ -1571,6 +1598,24 @@ be received by the Verifier rather than in some local or internal form.
 
 Changes from Earlier Versions
 =============================
+
+draft-ietf-dkim-dkim2-spec-02
+
+Made explicit that base64strings must be padded with zero bits.
+
+Fixed header field description in JSON to be single string. and moved
+the removed info into the textual discussion. Removed the z body recipe
+since DSNs do not actually need this.
+
+Added text to emphasise that semi-colons are (easy to parse) separators
+in Message-Instance and DKIM2-Signature. Also fixed the syntax for
+extension tags.
+
+Added Authentication-Results to the list of headers that are
+excluded from being signed.
+
+Added text about what donotmodify means and added text to the
+verification section about this and the donotexplode flag.
 
 draft-ietf-dkim-dkim2-spec-01
 
