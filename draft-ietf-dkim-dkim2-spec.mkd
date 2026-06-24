@@ -911,7 +911,7 @@ generated so as to not immediately reveal who else received the email.
 
 However, if "bcc:" recipients are involved then in order to
 meet the requirements of [RFC5322] Section 3.6.3 each and every
-bcc recipients MUST NOT revealed to any other message recipient.
+bcc recipients MUST NOT be revealed to any other message recipient.
 
 ABNF:
 
@@ -1163,7 +1163,7 @@ undertaken in calculating header hashes).
 *  Delete all WSP characters. This means all WSP characters before and
    after the colon separating the header field name from the header
    field value, all WSP characters within the unfolded header field
-   value and all trailing WPS characters before the CRLF. The colon
+   value and all trailing WSP characters before the CRLF. The colon
    separator and the CRLF MUST be retained.
 
 *  Place the header fields in order. First come the Message-Instance
@@ -1619,9 +1619,9 @@ verification section about this and the donotexplode flag.
 
 draft-ietf-dkim-dkim2-spec-01
 
-Additions to terninology. Improved ABNF. Removed definition of tag-list
+Additions to terminology. Improved ABNF. Removed definition of tag-list
 and placed relevant text in the two header field definitions. Untangled 
-he description of what needs to be verified from the description of how
+the description of what needs to be verified from the description of how
 to verify and provided a list of human-readable strings to generate for
 errors.
 
