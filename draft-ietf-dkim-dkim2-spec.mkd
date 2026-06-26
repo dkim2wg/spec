@@ -818,7 +818,7 @@ semi-colons will never occur within tags or values, they only act
 as a separators.
 
 The i=, m=, t=, d= and s= tags MUST be present. There MUST be
-either an nf= tag or both mf= and rt= tags. The other tags are optional.
+either an nd= tag or both mf= and rt= tags. The other tags are optional.
 
 The tag identifiers (before the = sign) MUST be treated as case
 insignificant, the tag value (after the = sign) is case significant. The
@@ -955,7 +955,7 @@ higher sequence number that contains rf= and mf= tags.
 
 ABNF:
 
-    sig-nd-tag   = %6e %x64 [FWS] "=" [FWS] Domain
+    sig-nd-tag   = %x6e %x64 [FWS] "=" [FWS] Domain
 
 ## d=  the domain associated with this signature.
 
