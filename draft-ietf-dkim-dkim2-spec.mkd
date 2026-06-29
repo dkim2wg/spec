@@ -818,7 +818,7 @@ semi-colons will never occur within tags or values, they only act
 as a separators.
 
 The i=, m=, t=, d= and s= tags MUST be present. There MUST be
-either an nf= tag or both mf= and rt= tags. The other tags are optional.
+either an nd= tag or both mf= and rt= tags. The other tags are optional.
 
 The tag identifiers (before the = sign) MUST be treated as case
 insignificant, the tag value (after the = sign) is case significant. The
@@ -951,7 +951,7 @@ d= tag of the next DKIM2-Signature in sequence (i=) order.
 Note that when an nd= tag is present both mf= and rt= MUST be omitted.
 It is permissible to have more than one DKIM2-Signature header fields
 with an nd= tag, but there MUST always be a DKIM2-Signature with a
-higher sequence number that contains rf= and mf= tags.
+higher sequence number that contains mf= and rt= tags.
 
 ABNF:
 
