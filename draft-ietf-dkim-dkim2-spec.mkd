@@ -1,7 +1,7 @@
 ---
 title: DomainKeys Identified Mail Signatures v2 (DKIM2)
 abbrev: DKIM2 Signatures
-docname: draft-ietf-dkim-dkim2-spec-03
+docname: draft-ietf-dkim-dkim2-spec-04
 submissionType: IETF
 number:
 date:
@@ -431,45 +431,57 @@ However, for reasons of simplicity some header fields are not signed
 and processing of the message MUST be performed as if they were not
 present.
 
-These exceptions fall into three classes:
+The exceptions fall into three classes:
 
-## Trace Headers
+ 1. Trace Headers
 
-"Received" or "Return-Path" header fields MUST be ignored. These are
-Trace Headers as described in [RFC5321] and serve only to document
-details of the SMTP transmission process.
+    "Received" or "Return-Path" header fields MUST be ignored. These are
+    Trace Headers as described in [RFC5321] and serve only to document
+    details of the SMTP transmission process.
 
-The experimental "Delivered-To:" header field ([RFC9228]) MUST also
-be ignored.
+    The experimental "Delivered-To:" header field ([RFC9228]) MUST also
+    be ignored.
 
-## Other Email Authentication Mechanisms
+ 1. Other Email Authentication Mechanisms
 
-"DKIM-Signature" header fields and any header fields whose field name
-starts with "ARC-" MUST be ignored.
+    "DKIM-Signature" header fields and any header fields whose field name
+    starts with "ARC-" MUST be ignored.
 
-Not including DKIM1 and ARC header fields means that systems that
-wish to add other types of signature as well as a DKIM2 signature
-are free to do this in any convenient order.
+    Not including DKIM1 and ARC header fields means that systems that
+    wish to add other types of signature as well as a DKIM2 signature
+    are free to do this in any convenient order.
 
-## Headers With Purely Local Meaning
+ 1. Headers With Purely Local Meaning
 
-"Authentication-Results header fields MUST be ignored. These header
-fields are defined in [RFC8601] where it is made clear that their
-contents are only intended for use within the the ""trust boundary"
-of an Administrative Management Domain". As they can only used
-reliably within that trust boundary there has been no need to
-secure them cryptographically and given how they may be added or
-removed as messages cross trust boundaries it is inconvenient and
-unnecessary for DKIM2 to sign them.
+    "Authentication-Results header fields MUST be ignored. These header
+    fields are defined in [RFC8601] where it is made clear that their
+    contents are only intended for use within the the ""trust boundary"
+    of an Administrative Management Domain". As they can only used
+    reliably within that trust boundary there has been no need to
+    secure them cryptographically and given how they may be added or
+    removed as messages cross trust boundaries it is inconvenient and
+    unnecessary for DKIM2 to sign them.
 
-Header fields with a header field name starting with "X-" MUST be
-ignored. Currently deployed email systems use these fields as
-proprietary Trace headers or for other proprietary reasons. They
-have no defined meaning for other systems and it considerably
-simplifies reporting on changes to header fields to ignore them. Note
-that the recommendations in [RFC6648] mean that it is most
-unlikely that any header field name starting "X-" will be developed
-within the IETF.
+    Header fields with a header field name starting with "X-" MUST be
+    ignored. Currently deployed email systems use these fields as
+    proprietary Trace headers or for other proprietary reasons. They
+    have no defined meaning for other systems and it considerably
+    simplifies reporting on changes to header fields to ignore them. Note
+    that the recommendations in [RFC6648] mean that it is most
+    unlikely that any header field name starting "X-" will be developed
+    within the IETF.
+
+## Summary
+
+These header fields are not signed:
+
+    ARC-*:
+    Authentication-Results:
+    Delivered-To:
+    DKIM-Signature:
+    Received:
+    Return-Path:
+    X-*:
 
 # Recipes {#JSONrecipe}
 
@@ -949,9 +961,10 @@ The domain name in the nd= tag MUST exactly match the domain name of the
 d= tag of the next DKIM2-Signature in sequence (i=) order.
 
 Note that when an nd= tag is present both mf= and rt= MUST be omitted.
-It is permissible to have more than one DKIM2-Signature header fields
-with an nd= tag, but there MUST always be a DKIM2-Signature with a
-higher sequence number that contains mf= and rt= tags.
+It is permissible to have a sequence of more than one
+DKIM2-Signature header fields with an nd= tag, but this sequence
+(in unbroken ascending numeric order of i= tags) MUST end with a
+DKIM2-Signature that contains mf= and rt= tags.
 
 ABNF:
 
@@ -1162,6 +1175,18 @@ who creates an appropriate DNS entry. The alternative is for the Signer
 to create a public
 key DNS entry within a part of the DNS that they control and the domain owner
 publishes a CNAME pointing at this.
+
+The general expectation is that signatures with an nd= tag have been
+applied by the same system as the next DKIM2-Signature field
+without an nd= tag. However, as a special case (where arrangements
+have been put in place to cover the situation) a message with an
+nd= tag in the highest numbered DKIM2-Signature header field may
+be sent over an SMTP connection. The receiving system will not
+be able to validate the MAIL FROM and RCPT TO parameters and MUST
+rely on out-of-band information to deem the message acceptable.
+The system MUST then provide a DKIM2-Signature header field with
+a d= tag that exactly matches the nd= tag. Adding such a header
+field will signal that the break in the chain of custody is intentional.
 
 ##  The Relaxed Domain Match Algorithm {#relaxed-domain-match}
 
@@ -1418,7 +1443,7 @@ Possible errors:
 
 ## Check the Chain-of-Custody
 
-As explained in {{chain-of-custody}} a Verifier MUST check an exact
+As explained in {{chain-of-custody}} a Verifier MUST check for an exact
 match between the MAIL FROM and RCPT TO parameters used when delivering
 a message and the values found in the mf= and rt= tags of the highest
 numbered DKIM2-Signature header field. There may be extra values
@@ -1439,12 +1464,17 @@ If an nd= tag has been used instead of mf= and rt= tags then a
 Verifier MUST ensure that there is an exact match with the d=
 value in the next DKIM2-Signature field in sequence number order.
 
+Verifiers SHOULD ensure that there are out-of-band arrangements
+in place to assess message validity when the highest numbered
+DKIM2-Signature header field contains an nd= tag.
+
 Possible errors:
 
     PERMERROR: DKIM2-Signature i=<x> MAIL FROM <value> did not match
     PERMERROR: DKIM2-Signature i=<x> RCPT TO <value> did not match
     PERMERROR: DKIM2-Signature i=<x> MAIL FROM and d= do not match
     PERMERROR: DKIM2-Signature i=<x> MAIL nd= does not match
+    PERMERROR: DKIM2-Signature i=<x> unexpected nd= tag
 
 ## Fetch the Public Key
 
@@ -1626,9 +1656,10 @@ receiving the DSN, determined by examining the
 d= and mf= tags of that DKIM2-Signature header field.
 
 1. The header fields of the embedded message (in the message/rfc822
-MIME part) can be verified. If the message body is present then
-that can also be verified by inspecting the Message-Instance
-header field(s).
+MIME part) can be verified by checking the header hash values in
+the highest numbered Message-Instance header field. If the message
+body is present then that can be verified by inspecting the body
+hash value in the highest numbered Message-Instance header field.
 
 If the verification fails then the DSN MUST NOT be propagated
 any further. If verification has been performed prior to
@@ -1686,6 +1717,15 @@ be received by the Verifier rather than in some local or internal form.
 
 Changes from Earlier Versions
 =============================
+
+draft-ietf-dkim-dkim2-spec-04
+
+Provided summary of unsigned header fields.
+
+Added text for situation when the highest DKIM2-Signature field
+of a message has an nd= tag.
+
+Added text to clarify checking of Message-Instance in a DSN.
 
 draft-ietf-dkim-dkim2-spec-03
 
