@@ -1,12 +1,13 @@
 ---
 title: Domain Name Specification for DKIM2
 abbrev: DKIM2 DNS
-docname: draft-dkim-dkim2-dns-00
+docname: draft-ietf-dkim-dkim2-dns-00
 submissionType: IETF
 category: std
 ipr: trust200902
 keyword: Internet-Draft
 stand_alone: yes
+wg: dkim
 pi: [toc, sortrefs, symrefs]
 
 author:
