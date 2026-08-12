@@ -55,10 +55,12 @@ normative:
 
 informative:
     RFC5598:
+    RFC7208:
     RFC8017:
     RFC8032:
     RFC8617:
     CONCLUDEARC: I-D.adams-arc-experiment-conclusion
+    HDRMAINT: I-D.gondwana-email-header-maintenance
 
 --- abstract
 
@@ -442,10 +444,28 @@ The exceptions fall into three classes:
     The experimental "Delivered-To:" header field ([RFC9228]) MUST also
     be ignored.
 
+    Other specifications designate further header fields as trace
+    fields. A survey of such specifications, using the methodology of
+    [HDRMAINT], identifies "Auto-Submitted", "DL-Expansion-History",
+    "Original-Recipient", "SIO-Label-History", "VBR-Info" and
+    "X400-Trace", which MUST also be ignored.
+
+    The same survey records header fields which are added by handling
+    agents in transit even though no specification designates them as
+    trace fields: "Apparently-To" and "X400-Received". For DKIM2 it is
+    that behaviour, rather than any formal designation, which matters,
+    so these MUST also be ignored.
+
+    Any header field whose field name starts with "Received-", such as
+    "Received-SPF" ([RFC7208]), MUST be ignored. This allows future
+    specifications to create new trace header fields of this form
+    without affecting DKIM2 processing.
+
  1. Other Email Authentication Mechanisms
 
-    "DKIM-Signature" header fields and any header fields whose field name
-    starts with "ARC-" MUST be ignored.
+    "DKIM-Signature" header fields and the "ARC-Authentication-Results",
+    "ARC-Message-Signature" and "ARC-Seal" header fields ([RFC8617])
+    MUST be ignored.
 
     Not including DKIM1 and ARC header fields means that systems that
     wish to add other types of signature as well as a DKIM2 signature
@@ -475,13 +495,24 @@ The exceptions fall into three classes:
 
 These header fields are not signed:
 
-    ARC-*:
+    Apparently-To:
+    ARC-Authentication-Results:
+    ARC-Message-Signature:
+    ARC-Seal:
     Authentication-Results:
+    Auto-Submitted:
     Delivered-To:
     DKIM-Signature:
+    DL-Expansion-History:
+    Original-Recipient:
     Received:
+    Received-*:
     Return-Path:
+    SIO-Label-History:
+    VBR-Info:
     X-*:
+    X400-Received:
+    X400-Trace:
 
 # Recipes {#JSONrecipe}
 
