@@ -1,7 +1,7 @@
 ---
 title: DomainKeys Identified Mail Signatures v2 (DKIM2)
 abbrev: DKIM2 Signatures
-docname: draft-ietf-dkim-dkim2-spec-05
+docname: draft-ietf-dkim-dkim2-spec-06
 submissionType: IETF
 number:
 date:
@@ -39,26 +39,27 @@ normative:
     RFC2045:
     RFC2047:
     RFC2119:
-    RFC3462:
     RFC4648:
     RFC5234:
     RFC5321:
     RFC5322:
     RFC6376:
     RFC6409:
+    RFC6522:
     RFC6530:
     RFC6648:
     RFC8259:
     RFC8601:
-    RFC9228:
     DKIMKEYS: I-D.chuang-dkim2-dns
 
 informative:
+    RFC1047:
     RFC5598:
     RFC7208:
     RFC8017:
     RFC8032:
     RFC8617:
+    RFC9228:
     CONCLUDEARC: I-D.adams-arc-experiment-conclusion
     HDRMAINT: I-D.gondwana-email-header-maintenance
 
@@ -1037,8 +1038,8 @@ algorithm supplied in the tag.
 
 To provide for algorithmic dexterity more than one signature,
 using different algorithms, MAY be supplied. One additional signature
-using the same algorithm MAY be present provided that a different
-Selector is used. 
+using the same algorithm (perhaps with a different key length) MAY be
+present provided that a different Selector is used. 
 
 A Selector MUST NOT be present more than once in a single DKIM2-Signature
 header field; if the signature values were the same this would be
@@ -1404,7 +1405,15 @@ were added after that point.
 ## Output states
 
 For compatibility with the Authentication-Results header field defined
-in [RFC8601] a verification will result in one of four states: 
+in [RFC8601] a verification will result in one of four states.
+
+The states report whether or not the message has travelled to the
+destination without being modified or replayed in a manner consistent
+with this specification. They do not attest in any way as to whether
+the message will be of value to the recipient or whether any
+modifications that have been made are or are not benign.
+
+The four states are:
 
 PASS:  The message was successfully verified.
 
@@ -1418,6 +1427,8 @@ PERMERROR:  The message could not be verified due to some error that
 TEMPERROR:  The message could not be verified due a temporary
       inability to retrieve a public key. A later attempt may
       produce a different.
+
+Thse states 
 
 A Verifier MAY cease verifying once a single failure is detected.
 
@@ -1437,7 +1448,7 @@ conversation the human-readable string SHOULD be part of the
 5xx or 4xx response string.
 
 If the results of the verification are being communicated in a
-Delivery Status Notification message ({{RFC3462}}) the
+Delivery Status Notification message ({{RFC6522}}) the
 human-readable string should be included.
 
 If, by local policy, a system wishes to accept a message which
@@ -1482,7 +1493,7 @@ Possible errors:
     PERMERROR DKIM2-Signature i=<x> tag=<y> missing
     PERMERROR DKIM2-Signature i=<x> tag=<y> was unexpected
     PERMERROR DKIM2-Signature i=<x> has a duplicate selector
-    PERMERROR DKIM2-Signature i=<x> has too many signatures
+    PERMERROR DKIM2-Signature i=<x> has more selectors than allowed
 
 ## Check the timestamps
 
@@ -1530,7 +1541,7 @@ Possible errors:
 
 ## Fetch the public key
 
-The public keys of all the signatures in DKIM2-Signature fields are
+The public keys of the signatures in DKIM2-Signature fields are
 needed to complete the verification process. Details of key management and
 representation are described in {{key_management}} and [DKIMKEYS].
 The Verifier MUST validate the key record and MUST NOT use any public
@@ -1571,11 +1582,11 @@ following steps:
 1.  If there is more than one signature provided then they MUST all be
     checked if the Verifier is able to do so. If any signature fails then
     an error SHOULD be reported. If all signatures that can be checked fail
-    then PERMFAIL MUST be reported.
+    then FAIL MUST be reported.
 
 1.  If some signatures fail and other pass then any error that is
-    reported should provide that information (e.g. PERMFAIL "rsa-sha256
-    signature passed, ed25519-sha256 signature failed").
+    reported should provide that information by specifying the relevant
+    Selector values.
 
 The reasoning for requiring that all signatures pass is that if a signature
 scheme has recently become deprecated because it is known to be cryptographically
@@ -1586,9 +1597,15 @@ to be a very significant security issue. A Verifier that determines that
 one signature passes whilst the other fails may well be in a position to
 prevent an attack.
 
+It will of course be extremely helpful for any error message reporting
+a signature failure to indicate the selector involved, and if some
+signatures appear correct and others not then reporting the full details
+may well be of much value.
+
 Possible errors:
 
-    FAIL: DKIM2-Signature i=<x> public key <value> incorrect signature
+    FAIL: DKIM2-Signature i=<x> <selector> incorrect signature
+    FAIL: DKIM2-Signature i=<x> <s1> signature passed, <s2> signature failed
 
 ## Validating body and header hashes
 
@@ -1596,8 +1613,11 @@ Verifying a hash value requires a Verifier to repeat the hash calculation
 performed by the Signer as set out in {{computing-body-hash}}
 and {{computing-body-hash}}. The values can then be directly compared.
 
-Since there may be more than one hash algorithm given the human-readable
+Since there may be more than one hash algorithm given, the human-readable
 error message SHOULD indicate which algorithm's result failed to match.
+
+If one hash value passes and another does not then this SHOULD be
+treated as a failure.
 
 Possible errors:
 
@@ -1606,7 +1626,7 @@ Possible errors:
 
 ## Check if donotmodify and donotexplode requests were honored
 
-If a Verifier receives a message with a nonotmodify request and a later
+If a Verifier receives a message with a donotmodify request and a later
 hop has altered the message body or removed or altered header fields
 then the message SHOULD be rejected.
 
@@ -1619,12 +1639,31 @@ Possible errors:
     FAIL: Message has been modified despite a donotmodify request
     FAIL: Message has been exploded despite a donotexplode request
 
+## Check for unexpected replay
+
+If a Verifier receives multiple copies of the same message and there
+is no indication that the message has been exploded then all of
+the messages SHOULD be rejected. Although, as [RFC1047] explains
+this could be a protocol level issue, these are rare on today's
+Internet -- it is most likely that a malicious replay attack
+has been detected.
+
+The hash values from the m=1 Message-Instance header field MAY
+be used to identify whether messages are the same. Of course,
+it may not be practical to reject the first copy of a group
+of identical messages or those that arrive some time after
+the first one.
+
+Possible errors:
+
+    FAIL: Duplicate message with no exploded flag    
+
 # Delivery Status Notifications in the DKIM2 ecosystem {#bounce}
 
 In the DKIM2 ecosystem, when a message cannot be delivered then
 this is reported to the sending machine by means of an [RFC5321]
 return code or, if the SMTP session has completed, by generating
-a Delivery Status Notification (DSN), as defined in [RFC3462].
+a Delivery Status Notification (DSN), as defined in [RFC6522].
 
 A DSN MUST be addressed to the MTA that sent the message. This
 prevents "backscatter" by passing failures back along the chain
@@ -1635,7 +1674,7 @@ MUST NOT be sent.
 
 ## DSN contents
 
-As set out in [RFC3462], a DSN has a top-level MIME part of
+As set out in [RFC6522], a DSN has a top-level MIME part of
 type `multipart/report`. 
 
 A valid DSN generated by a DKIM2 system MUST always contain three
@@ -1769,6 +1808,18 @@ be received by the Verifier rather than in some local or internal form.
 
 Changes from Earlier Versions
 =============================
+
+draft-ietf-dkim-dkim2-spec-06
+
+Corrected mentions of non-existent PERMFAIL.
+
+Clarified that PASS (etc) does not mean a message is valuable or
+that modifications are benign.
+
+Added instructions for Verifiers to check for DKIM replay.
+
+Tweaks to text and errors relating to too many algorithms
+or selectors; or for when signatures/hashes fail.
 
 draft-ietf-dkim-dkim2-spec-05
 
