@@ -1,0 +1,494 @@
+---
+title: Reporting DKIM2 Verification Results in Authentication-Results
+abbrev: DKIM2 Authentication-Results
+docname: draft-gondwana-dkim2-authres-00
+submissionType: IETF
+number:
+date:
+v:
+category: std
+updates:
+ipr: trust200902
+keyword: Internet-Draft
+stand_alone: yes
+pi: [toc, sortrefs, symrefs]
+
+author:
+ -
+    ins: B. Gondwana
+    name: Bron Gondwana
+    org: Fastmail Pty Ltd
+    street: Level 2, 114 William Street
+    code: 3000
+    country: Australia
+    phone: "+61 457 416 436"
+    email: brong@fastmailteam.com
+
+normative:
+    RFC2119:
+    RFC5234:
+    RFC5321:
+    RFC5322:
+    RFC8601:
+    DKIM2: I-D.ietf-dkim-dkim2-spec
+
+informative:
+    RFC5598:
+    RFC6376:
+    RFC8617:
+
+--- abstract
+
+DomainKeys Identified Mail Signatures v2 (DKIM2) produces a
+verification result for an email message. This document defines how
+that result is reported in the Authentication-Results header field,
+registering the "dkim2" authentication method, the result values it
+can take, and two properties which identify the signing domain and
+the point in the chain at which verification failed. Diagnostic
+detail about each hop is carried in a human-readable comment.
+
+--- middle
+
+# Introduction
+
+DKIM2 ([DKIM2]) associates a domain with an email message, and
+provides a chain of signatures which documents each system that
+handled the message. Verification of that chain produces a single
+result for the message as a whole.
+
+The Authentication-Results header field ([RFC8601]) is the standard
+means by which an Administrative Management Domain (ADMD) records the
+outcome of message authentication for the benefit of other elements
+within that same ADMD. [DKIM2] anticipates this: it defines its
+verification outcomes as four states chosen "for compatibility with
+the Authentication-Results header field", and it defines a set of
+human-readable strings which a Verifier is directed to use when
+describing a failure. It does not, however, say how any of this is
+expressed in an Authentication-Results header field, nor does it
+register anything with IANA.
+
+This document supplies that. It registers the "dkim2" authentication
+method and its result values, and defines two properties. It
+deliberately does not attempt to make the whole of a DKIM2
+verification machine-readable. The result value is machine-readable,
+because software acts on it; the per-hop detail is reported in a
+comment, because its audience is a human being diagnosing a problem.
+This follows the approach taken by ARC ([RFC8617]), which registered
+two properties and carried its per-instance detail in a comment.
+
+This document defines no new header field and no new ptype.
+
+# Terminology and conventions
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+[RFC2119].  These words take their normative meanings only when they
+are presented in ALL UPPERCASE.
+
+Basic email terminology is taken from [RFC5598]. The terms Signer,
+Verifier, Originator, Signing Domain and Chain of Custody are used as
+defined in [DKIM2].
+
+Syntax descriptions use Augmented BNF (ABNF) [RFC5234]. The tokens
+"FWS", "comment", "ctext" and "quoted-pair" are imported from
+[RFC5322]; the token "Domain" is imported from [RFC5321]; the tokens
+"ptype", "property" and "resinfo" are imported from [RFC8601].
+
+For clarity this document refers to DKIM ([RFC6376]) as DKIM1.
+
+# The dkim2 Authentication Method {#method}
+
+A Verifier which has attempted DKIM2 verification of a message
+reports the outcome using the authentication method name "dkim2".
+
+A single Authentication-Results header field SHOULD contain at most
+one "resinfo" for the "dkim2" method. Unlike DKIM1, where each
+signature authenticates an identity independently and so warrants its
+own result, a DKIM2 verification produces one result for the message
+as a whole: the Chain of Custody either holds or it does not.
+
+## Result values {#results}
+
+The four output states defined in [DKIM2] map onto result values as
+follows:
+
+| DKIM2 output state | Result value |
+|---|---|
+| PASS | pass |
+| FAIL | fail |
+| PERMERROR | permerror |
+| TEMPERROR | temperror |
+
+This document additionally defines the result value:
+
+none:
+: The message contained no DKIM2-Signature header field, so no
+  verification was attempted.
+
+"none" is not one of the four states of [DKIM2], because those four
+are all outcomes of having attempted a verification. It serves the
+same purpose as "none" does for DKIM1 and for ARC, and allows a
+consumer to distinguish a message which was checked and carried
+nothing to check from a message which was never checked at all.
+
+A Verifier which attempts DKIM2 verification SHOULD report
+"dkim2=none" rather than omitting the method, so that this
+distinction is available. Note that this is distinct from the
+"no-result" production of [RFC8601], which records that no
+authentication of any kind was performed on the message.
+
+No other result values are defined. In particular a DKIM2
+verification does not produce "neutral" or "policy" results.
+
+## Properties {#properties}
+
+Two properties are defined, both with the "header" ptype. Both are
+OPTIONAL, and each MUST be omitted when its value cannot be
+determined.
+
+### header.d {#header-d}
+
+The value of the "d=" tag of the DKIM2-Signature header field whose
+"i=" tag has the value 1: that is, the Signing Domain of the
+Originator of the message.
+
+This is the identity to which a receiving system would ordinarily
+attach reputation, and is the direct analogue of the "header.d"
+property reported for DKIM1. The Signing Domain of the
+highest-numbered DKIM2-Signature header field is deliberately not
+reported, because [DKIM2] requires it to match the SMTP transaction
+in which the message was received, and it is therefore already
+available to the receiving system by other means.
+
+This property MUST be omitted if no DKIM2-Signature header field with
+"i=1" is present, or if such a field is present but sufficiently
+malformed that no "d=" value can be extracted from it.
+
+A Verifier MAY report "header.d" alongside any result value, and
+doing so assists diagnosis. However, the domain is an authenticated
+identity only when the reported result is "pass". Consumers MUST NOT
+use "header.d" as an input to reputation or message disposition
+decisions unless the reported result is "pass".
+
+### header.i {#header-i}
+
+The value of the "i=" tag of the DKIM2-Signature header field to
+which the reported failure is attributed.
+
+This property MUST be omitted when the result is "pass" or "none". It
+MUST also be omitted where the reported failure is a property of the
+message as a whole rather than of any one signature, which is the
+case for the following failures defined in [DKIM2]:
+
+* a message has been modified despite a "donotmodify" request;
+* a message has been exploded despite a "donotexplode" request;
+* a duplicate message has been received with no "exploded" flag.
+
+Where a Verifier has ceased verifying upon detecting a single
+failure, as [DKIM2] permits, the value reported is that of the
+signature at which it stopped.
+
+Some of the failures defined in [DKIM2] are reported against a
+Message-Instance header field, identified by its "m=" tag, rather
+than against a DKIM2-Signature header field. For these, the value
+reported is the "i=" tag value of the DKIM2-Signature header field
+whose "m=" tag references that Message-Instance. A Verifier which
+cannot make that association MUST omit this property.
+
+Implementers should note that the property name "header.i" is also
+registered for the "dkim" method, where it carries an entirely
+different value: the Agent or User Identifier of a DKIM1 signature,
+such as "@example.com". The two registrations are distinguished by
+their method, and a Verifier which reports both methods for the same
+message will emit both spellings in the same header field. This is
+permitted, and follows the convention of naming the property after
+the tag it reports, but it is a plausible source of confusion when
+such a header field is read by eye.
+
+## The explanatory comment {#comment}
+
+Per-hop detail is reported in a comment ([RFC5322]) placed within the
+"resinfo" for the "dkim2" method. [RFC8601] permits a comment
+wherever CFWS is permitted, which includes the position immediately
+following the result value.
+
+A comment is not part of the "resinfo" grammar, and a conforming
+parser is free to discard it. The information carried in the comment
+is therefore advisory, intended for a human being diagnosing a
+delivery problem. Consumers MUST NOT depend on its presence, and MUST
+NOT rely on its internal structure. Implementers requiring a
+machine-readable signal MUST use the result value and the properties
+defined in {{properties}}.
+
+When the reported result is anything other than "pass" or "none", the
+comment SHOULD include, verbatim, the relevant human-readable string
+defined in [DKIM2], with its "m=`<x>`", "tag=`<y>`", "`<selector>`"
+and "`<value>`" placeholders substituted as that document directs.
+[DKIM2] already instructs Verifiers to use those strings so as to
+give senders the maximum possible assistance; reproducing the string
+here places it where a recipient-side diagnosis will find it.
+
+### Recommended form
+
+The following form is RECOMMENDED. It is given so that comments
+produced by different implementations resemble one another, not so
+that they may be parsed:
+
+    dkim2-comment = "(" [FWS] [ hop-list ]
+                    [ [FWS] ";" [FWS] diagnostic ] [FWS] ")"
+    hop-list      = hop-item *( [FWS] "," [FWS] hop-item )
+    hop-item      = "i=" 1*DIGIT [ FWS Domain ] [ FWS hop-outcome ]
+    hop-outcome   = "pass" / "fail" / "permerror" / "temperror" /
+                    "skipped"
+    diagnostic    = 1*( ctext / quoted-pair / FWS )
+
+The "hop-list" reports one item per DKIM2-Signature header field, in
+ascending order of "i=", giving the Signing Domain and the outcome
+for that signature. The "diagnostic", where present, carries the
+human-readable string from [DKIM2].
+
+The "skipped" outcome records a signature which was not verified,
+either because the Verifier ceased verifying upon detecting a failure
+or because it was unable to check that signature. Note that [DKIM2]
+directs a Verifier to check the most recently applied signature
+first, so where verification stops early it is generally the
+lower-numbered signatures which are reported as skipped.
+
+### Escaping {#escaping}
+
+Several of the values substituted into the human-readable strings of
+[DKIM2] originate in the message under evaluation, and are therefore
+under the control of whoever composed or handled it. These include
+Selector values, domain names, and MAIL FROM and RCPT TO values.
+
+The "ctext" production of [RFC5322] excludes the characters "("
+(%x28), ")" (%x29) and "\\" (%x5C), and comments nest. A value
+containing any of those characters, emitted without escaping, will
+either terminate the comment early or leave it unterminated, in
+either case corrupting the remainder of the header field.
+
+A Verifier MUST therefore escape those three characters as
+"quoted-pair" ([RFC5322]) wherever they occur in a substituted value.
+A Verifier SHOULD additionally impose an implementation-defined limit
+on the length of any substituted value.
+
+# Verifier behaviour {#verifier}
+
+## Reporting {#reporting}
+
+A Verifier adds its result to an Authentication-Results header field
+as described in [RFC8601]. [DKIM2] observes that adding an
+Authentication-Results header field does not count as a modification
+to the message for DKIM2 purposes, because that field is not signed.
+
+## Trust boundary {#trust-boundary}
+
+An Authentication-Results header field is meaningful only within the
+ADMD which added it, and [RFC8601] requires that an ADMD remove
+untrusted instances of the field on ingress. That requirement applies
+to "dkim2" results exactly as it does to any other method.
+
+This bears emphasis for DKIM2 specifically. [DKIM2] excludes
+Authentication-Results from the set of header fields it signs, and
+does so deliberately, because those fields are added after
+verification has occurred and are commonly stripped as a message
+crosses a trust boundary. A "dkim2" result therefore carries no
+cryptographic protection whatsoever, notwithstanding that the
+mechanism it reports on is cryptographic. An ADMD MUST NOT infer any
+trustworthiness for a "dkim2" result from the nature of DKIM2 itself.
+
+## Results do not transfer {#no-transfer}
+
+A "dkim2=pass" records that the Chain of Custody verified as far as
+the reporting Verifier, in the SMTP transaction in which that
+Verifier received the message. It says nothing about any subsequent
+hop: [DKIM2] binds the highest-numbered DKIM2-Signature header field
+to the MAIL FROM and RCPT TO of a particular transaction, so a
+verification performed by one system is not evidence for the next.
+
+A system which forwards a message MUST NOT copy a "dkim2" result
+forward for the benefit of a downstream system. A forwarder wishing
+to make its own handling verifiable adds a DKIM2-Signature header
+field of its own, as [DKIM2] describes.
+
+# Examples
+
+In these examples, line breaks and indentation within the header
+field are for readability and follow the folding rules of [RFC5322].
+
+A message signed only by its Originator, verifying correctly:
+
+    Authentication-Results: mx.example.net;
+      dkim2=pass (i=1 sender.example.com pass)
+       header.d=sender.example.com
+
+A message which passed through a mailing list, verifying correctly:
+
+    Authentication-Results: mx.example.net;
+      dkim2=pass (i=1 sender.example.com pass,
+       i=2 list.example.org pass) header.d=sender.example.com
+
+A four-hop message whose third signature does not verify. The
+Verifier worked downwards from the most recently applied signature
+and ceased verifying at the failure, so the first and second
+signatures are reported as skipped. Note that "header.d" is still
+reported even though the "i=1" signature was never checked, and so
+is not an authenticated identity here:
+
+    Authentication-Results: mx.example.net;
+      dkim2=fail (i=1 sender.example.com skipped,
+       i=2 list.example.org skipped, i=3 fwd.example.net fail,
+       i=4 relay.example.net pass;
+       FAIL: DKIM2-Signature i=3 sel1 incorrect signature)
+       header.d=sender.example.com header.i=3
+
+A message for which a public key could not be retrieved:
+
+    Authentication-Results: mx.example.net;
+      dkim2=temperror (i=1 sender.example.com temperror;
+       TEMPERROR: DKIM2-Signature i=1 public key sel1 could not
+       be fetched) header.d=sender.example.com header.i=1
+
+A message carrying no DKIM2-Signature header field at all:
+
+    Authentication-Results: mx.example.net; dkim2=none
+
+A duplicate message detected as a replay. The chain itself verified,
+so no single signature is at fault and "header.i" is omitted:
+
+    Authentication-Results: mx.example.net;
+      dkim2=fail (i=1 sender.example.com pass,
+       i=2 fwd.example.org pass;
+       FAIL: Duplicate message with no exploded flag)
+       header.d=sender.example.com
+
+A Chain of Custody failure in which the substituted MAIL FROM value
+contains parentheses, and has been escaped as {{escaping}} requires:
+
+    Authentication-Results: mx.example.net;
+      dkim2=permerror (i=1 sender.example.com pass,
+       i=2 fwd.example.org permerror;
+       PERMERROR: DKIM2-Signature i=2 MAIL FROM
+       <alice\(work\)@example.com> did not match)
+       header.d=sender.example.com header.i=2
+
+A message reported on by several methods at once. Note that
+"header.i" appears twice with different meanings, as discussed in
+{{header-i}}: for "dkim" it is the DKIM1 signature's Agent or User
+Identifier, and for "dkim2" it is a sequence number:
+
+    Authentication-Results: mx.example.net;
+      spf=pass smtp.mailfrom=sender.example.com;
+      dkim=pass header.d=sender.example.com
+       header.i=@sender.example.com header.s=sel1;
+      dkim2=fail (i=1 sender.example.com pass,
+       i=2 fwd.example.org fail;
+       FAIL: Message Instance m=2 body hash sha256 mismatch)
+       header.d=sender.example.com header.i=2
+
+# IANA considerations
+
+## Email Authentication Methods registry
+
+IANA is requested to add the following entries to the "Email
+Authentication Methods" registry:
+
+| Method | Definition | ptype | Property | Value | Status | Version |
+|---|---|---|---|---|---|---|
+| dkim2 | this document, {{header-d}} | header | d | The "d=" tag value of the DKIM2-Signature header field with "i=1" | active | 1 |
+| dkim2 | this document, {{header-i}} | header | i | The "i=" tag value of the DKIM2-Signature header field to which a reported failure is attributed | active | 1 |
+
+No new ptype is required; both properties use the existing "header"
+ptype.
+
+## Email Authentication Result Names registry
+
+IANA is requested to add the following entries to the "Email
+Authentication Result Names" registry:
+
+| Auth Method | Code | Specification | Status |
+|---|---|---|---|
+| dkim2 | none | this document, {{results}} | active |
+| dkim2 | pass | this document, {{results}} | active |
+| dkim2 | fail | this document, {{results}} | active |
+| dkim2 | permerror | this document, {{results}} | active |
+| dkim2 | temperror | this document, {{results}} | active |
+
+# Security considerations
+
+The security considerations of [RFC8601] apply in full. Those below
+are additional, or bear repeating in the DKIM2 context.
+
+## No cryptographic protection
+
+As set out in {{trust-boundary}}, a "dkim2" result in an
+Authentication-Results header field is unsigned and unprotected, even
+though DKIM2 itself is a cryptographic mechanism. An
+Authentication-Results header field can be added, altered or removed
+by any system which handles the message, and DKIM2 will not detect
+that this has occurred, because it does not sign the field.
+
+An ADMD which acts on "dkim2" results without removing untrusted
+instances of the field on ingress can be induced to accept an
+attacker-supplied verdict for an arbitrary message. The mitigation is
+the ingress requirement of [RFC8601], and it is not optional.
+
+## A pass is not an assurance about content
+
+[DKIM2] states explicitly that its output states report whether a
+message reached its destination unmodified and unreplayed in a manner
+consistent with that specification, and that they do not attest in
+any way as to whether the message will be of value to the recipient
+or whether any modifications made to it were benign.
+
+A "dkim2=pass" therefore means that the Chain of Custody held. It
+does not mean the message is wanted, truthful, or safe, and it does
+not mean that the changes made by intermediaries in the chain were
+harmless. Consumers which treat "pass" as a proxy for any of those
+properties will be wrong, and can be made wrong deliberately by an
+attacker who constructs a correctly signed chain.
+
+## Attacker-influenced comment content
+
+The comment described in {{comment}} reproduces values taken from the
+message under evaluation, and those values are chosen by whoever
+composed or handled that message.
+
+{{escaping}} requires that the characters which are significant to
+the comment syntax be escaped. A Verifier which does not do so can be
+made to emit a malformed header field, and in the worst case to
+terminate its comment early and have attacker-chosen text parsed as
+further "resinfo" content, forging results for other methods within
+the ADMD's own trusted header field. Bounding the length of
+substituted values, as {{escaping}} also recommends, limits the
+related denial-of-service risk of an attacker inflating the header
+field.
+
+Software which renders these comments to a user should treat their
+content as untrusted text, and in particular should not interpret it
+as markup.
+
+## Information disclosure
+
+The comment described in {{comment}} may reveal the Signing Domains of
+every system which handled a message, and the human-readable strings
+of [DKIM2] may include MAIL FROM and RCPT TO values. Where a message
+was forwarded, this can disclose the existence and identity of
+forwarding relationships, and RCPT TO values can disclose recipient
+addresses.
+
+This is not a new exposure, since the information is present in the
+DKIM2-Signature header fields themselves, and an Authentication-Results
+header field is in any case intended to remain within the ADMD which
+added it. It is nonetheless a further reason to remove these fields
+at trust boundaries, in both directions.
+
+--- back
+
+Changes from Earlier Versions
+=============================
+
+draft-gondwana-dkim2-authres-00
+
+Initial version.
