@@ -1,13 +1,21 @@
 ---
 title: DKIM2 Best Practices
-abbrev: DKIM2 BCP
-docname: draft-ietf-dkim-dkim2-bcp-00
-submissionType: IETF
-category: std
-updates:
-obsoletes:
+abbrev: DKIM2-BCP
+docname: draft-ietf-dkim-dkim2-bcp-01
+category: bcp
+submissiontype: IETF
+consensus: true
 ipr: trust200902
-keyword: Internet-Draft
+area: Applications and Real-Time
+workgroup: dkim
+keyword:
+ - DKIM2
+ - email authentication
+ - best current practice
+ - DMARC
+ - SPF
+ - ARC
+
 stand_alone: yes
 pi: [toc, sortrefs, symrefs]
 
@@ -19,474 +27,432 @@ author:
     email: todd@someguyinva.com
 
 normative:
-    RFC1034:
-    RFC2119:
-    RFC5322:
-    RFC6376:
-    RFC7208:
-    RFC9989:
-    RFC9990:
-    DKIM2: I-D.ietf-dkim-dkim2-spec 
-    DKIMKEYS: I-D.chuang-dkim2-dns
+  RFC1034:
+  RFC2119:
+  RFC5322:
+  RFC6376:
+  RFC7208:
+  RFC9989:
+  RFC9990:
+  DKIM2:
+    target: https://datatracker.ietf.org/doc/html/draft-ietf-dkim-dkim2-spec-06
+    title: "DomainKeys Identified Mail Signatures v2 (DKIM2)"
+    date: 2026-08-28
+    author:
+      - ins: R. Clayton
+        name: Richard Clayton
+        org: Yahoo
+      - ins: W. Chuang
+        name: Wei Chuang
+        org: Google
+      - ins: B. Gondwana
+        name: Bron Gondwana
+        org: Fastmail Pty Ltd
+  DKIMKEYS:
+    target: https://datatracker.ietf.org/doc/html/draft-ietf-dkim-dkim2-dns-00
+    title: "Domain Name Specification for DKIM2"
+    date: 2026-07-20
+    author:
+      - ins: W. Chuang
+        name: Wei Chuang
+        org: Google
+  DKIM2AUTH:
+    target: https://datatracker.ietf.org/doc/html/draft-gondwana-dkim2-authres-00
+    title: "Reporting DKIM2 Verification Results in Authentication-Results"
+    date: 2026-09-03
+    author:
+      - ins: B. Gondwana
+        name: Bron Gondwana
+        org: Fastmail Pty Ltd
+
 
 informative:
-    RFC5598:
-    RFC8017:
-    RFC8032:
-    RFC8617:
-    CONCLUDEARC: I-D.adams-arc-experiment-conclusion
-
+  RFC5598:
+  RFC5965:
+  RFC6377:
+  RFC6449:
+  RFC6973:
+  RFC8017:
+  RFC8601:
+  RFC8617:
+  CONCLUDEARC:
+    target: https://datatracker.ietf.org/doc/html/draft-adams-arc-experiment-conclusion-01
+    title: "Concluding the ARC Experiment"
+    date: 2025-12-04
+    author:
+      - ins: J. T. Adams
+      - ins: J. R. Levine
+  M3AAWG-DKIM-ROTATION:
+    target: https://www.m3aawg.org/sites/default/files/m3aawg-dkim-key-rotation-bp-2019-03.pdf
+    title: "M3AAWG DKIM Key Rotation Best Common Practices"
+    date: 2019-03
+    author:
+      - org: Messaging, Malware and Mobile Anti-Abuse Working Group (M3AAWG)
 
 --- abstract
 
-[DKIM2] and associated documents describe the DomainKeys Identified Mail v2 (DKIM2) email authentication protocol. 
-DKIM2 is designed to address shortcomings in email authentication protocols and mechanisms released prior to DKIM2,
-specifically SPF [RFC7208], DKIM [RFC6376], DMARC [RFC9989], and ARC [RFC8617]. Those shortcomings most commonly
-manifested themselves in email messages that passed through one or more intermediary hosts (e.g., forwarders or
-mailing list servers) while transiting from origination to final destination. Although these messages were properly
-authenticated when sent, the alteration of their path and/or content by the intermediary hosts would cause authentication
-checks to fail at the final destination. In addition, DKIM was susceptible to "replay" of signatures, when attackers
-would construct abusive messages in such a way that they would pass validation checks for a DKIM signature that had
-been imported from another message entirely.
-
-To address these shortcomings, DKIM2 provides methods not only for intermediary systems to provide details of the changes that
-they make to a message in transit, but also for receiving hosts to validate those changes in addition to the original message.
-DKIM2 also allows recipients to detect when messages have been unexpectedly "replayed" and can also ensure that delivery status
-notifications (DSNs) are only sent to entities that were involved in the transmission of a message.
-
-This document describes the recommended usage of the DKIM2 protocol for sending hosts, intermediary hosts, and receiving
-hosts.
+[DKIM2] and its associated documents describe the DomainKeys Identified Mail v2 (DKIM2) email authentication protocol. DKIM2 is designed to address shortcomings in email authentication protocols and mechanisms released prior to DKIM2, specifically SPF {{RFC7208}}, DKIM {{RFC6376}}, DMARC {{RFC9989}}, and ARC {{RFC8617}}. This document discusses best practices for signing, handling, and validating messages that carry DKIM2 signatures, and for interoperating with the authentication protocols and mechanisms that preceded DKIM2.
 
 --- middle
 
 # Introduction
 
-DomainKeys Identified Mail v2 (DKIM2) permits a person, role, or
-organization to document that they have handled an email message by
-associating a domain name [RFC1034] with the message [RFC5322]. A
-public key signature is used to record that they have been able
-to read the contents of the message and write to it.
+DomainKeys Identified Mail v2 (DKIM2) permits a person, role, or organization to document that they have handled an email message by associating a domain name {{RFC1034}} with the message {{RFC5322}}. A public key signature is used to record that they have been able to read the contents of the message and write to it.
 
-Verification of claims is achieved by fetching a public key stored
-in the DNS under the relevant domain and then checking the signature.
+Verification of claims is achieved by fetching a public key stored in the DNS under the relevant domain and then checking the signature.
 
-Message transit from author to recipient is through
-Forwarders that typically make no substantive change to the message
-content and thus preserve the DKIM2 signature. Where they do make
-a change the changes they have made are documented so that
-these can be "undone" and the original signature validated.
+Message transit from author to recipient is through Forwarders that typically make no substantive change to the message content and thus preserve the DKIM2 signature. Where they do make a change, the changes they have made are documented so that these can be "undone" and the original signature validated.
 
-When a message is forwarded from one system to another an
-additional DKIM2 signature is added on each occasion. This chain
-of custody assists validators in distinguishing between messages that
-were intended to be sent to a particular email address and those
-that are being "replayed" to that address.
+When a message is forwarded from one system to another, an additional DKIM2 signature is added on each occasion. This chain of custody assists validators in distinguishing between messages that were intended to be sent to a particular email address and those that are being "replayed" to that address.
 
-The chain of custody can also be used to ensure that delivery status
-notifications are only sent to entities that were involved in the
-transmission of a message.
+The chain of custody can also be used to ensure that delivery status notifications are only sent to entities that were involved in the transmission of a message.
 
-Organizations that process a message can add to their signature
-a request for feedback as to any opinion (for example, that the
-email was considered to be spam) that the eventual recipient of
-the message wishes to share.
+Organizations that process a message can add to their signature a request for feedback as to any opinion (for example, that the email was considered to be spam) that the eventual recipient of the message wishes to share.
 
-This document discusses best practices for signing, handling, and validating
-messages that have a DKIM2 signature. These best practices are based in large
-part on the many years of experience the email community has with the 
-authentication protocols that DKIM2 is intended to replace.
+This document discusses best practices for signing with DKIM2, and for handling and validating received messages when a DKIM2 signature is expected. These best practices are based in large part on the many years of experience the email community has with the authentication protocols that DKIM2 is intended to replace, most notably the operational lessons captured for DKIM1 and mailing lists in {{RFC6377}}.
+
+This document tracks the DKIM2 base specification {{DKIM2}} and its companion DNS document {{DKIMKEYS}}. As those documents are themselves still in active development, several sections of this document identify open questions that the DKIM Working Group has not yet resolved; those sections are marked as such with question marks preceding and following the section text (e.g., "?? Whither DMARC ??") and the text in such sections should be speculative rather than settled Working Group consensus.
 
 # Terminology and Definitions
 
 This section defines terms used in the rest of the document.
 
-DKIM2 is designed to operate within the Internet Mail service, as
-defined in [RFC5598].  Basic email terminology is taken from that
-specification.
+DKIM2 is designed to operate within the Internet Mail service, as defined in {{RFC5598}}. Basic email terminology (e.g., MTA, MSA, MUA, ADMD, and others) is taken from that specification.
 
-DKIM2 inherits many ideas from DKIM ([RFC6376]) which, for clarity
-we refer to in this specification as DKIM1. In addition, some features
-were influenced by experience from (see [CONCLUDEARC]) the experimental
-ARC protocol ([RFC8617]).
+DKIM2 inherits many ideas from DKIM ({{RFC6376}}) which, for clarity, we refer to in this document as DKIM1. In addition, some features were influenced by experience from (see {{CONCLUDEARC}}) the experimental ARC protocol ({{RFC8617}}).
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
-"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
-"OPTIONAL" in this document are to be interpreted as described in
-[RFC2119].  These words take their normative meanings only when they
-are presented in ALL UPPERCASE.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in {{RFC2119}}. These words take their normative meanings only when they are presented in ALL UPPERCASE.
 
-## ADministrative Management Domains (ADMDs)
+## Originator
 
-The terms "ADMD" and "ADMDs" as used in this document  are defined 
-in [RFC5598].
+[DKIM2] defines the Originator as the entity that creates and sends the initial form of a message; the Originator adds the first Message-Instance header field (m=1) and the first DKIM2-Signature header field (i=1) to the message. 
 
-## Signers
+## Forwarder
 
-Elements in the mail system that sign messages on behalf of a domain
-are referred to as Signers.  These may be MUAs (Mail User Agents),
-MSAs (Mail Submission Agents), MTAs (Mail Transfer Agents), or other
-agents such as mailing list "exploders".  In general, any Signer will
-be involved in the injection of a message into the message system in
-some way.  The key point is that a message must be signed before it
-leaves the administrative domain of the Signer.
+{{RFC5598}} defines a Relay as transmitting or retransmitting a message but states that it will not modify the envelope information or the message content semantics. It also defines a Gateway as a hybrid of User and Relay that connects heterogeneous mail services. In this document we use the concept of a Forwarder which is an entity that receives a message and then, as an alternative to delivering it into a destination mailbox, can forward it on to another system in an automated, pre-determined, manner.
 
-## Forwarder ADMDs
+## Receiver
 
-[RFC5598] defines a Relay as transmitting or retransmitting a message
-but states that it will not modify the envelope information or the
-message content semantics. It also defines a Gateway as a hybrid of
-User and Relay that connects heterogeneous mail services. In this
-document we define a Forwarder as an ADMD that receives
-a message and then, as an alternative to delivering it into a
-destination mailbox, relays (or forwards) it on to another ADMD in
-an automated, pre-determined, manner.
+Receivers in the DKIM2 ecosystem are those entities that host mailboxes for the domain to which the message is ultimately routed.
 
-## Reviser
+## Signer
 
-As will be seen, a Forwarder may alter the message content or header
-fields, in such a way that existing signatures on the message will
-no longer validate. If so, then a record will be made of these
-changes. We call a Forwarder that makes such changes a Reviser.
-
-## Verifiers
-
-Elements in the mail system that verify signatures are referred to as
-Verifiers.  These may be Forwarders, Revisers, MTAs, Mail Delivery
-Agents (MDAs), or MUAs.  It is an expectation of DKIM2 that a recipient
-of a message will wish to verify some or all signatures before determining
-whether or not to accept the message or pass it on to another entity.
+Elements in the mail system that sign messages on behalf of a domain are referred to as Signers. These may be MUAs, MSAs, MTAs, or other agents such as mailing list "exploders". In general, any Signer will be involved in the injection of a message into the message system in some way. The key point is that a message must be signed before it leaves the administrative domain of the Signer.
 
 ## Signing Domain
 
-A domain name associated with a signature. This domain may be
-associated with the author of an email, their organization, a
-company hired to deliver the email, a mailing list operator, or
-some other entity that handles email. What they have in common is
-that at some point they had access to the entire contents of the
-email and were in a position to add their signature to the email.
+A domain name associated with a signature. This domain may be associated with the author of an email, their organization, a company hired to deliver the email, a mailing list operator, or some other entity that handles email. What they have in common is that at some point they had access to the entire contents of the email and were in a position to add their signature to the email.
 
-## Selectors
+## Reviser
 
-To support multiple concurrent public keys per signing domain, the
-key namespace is subdivided using "selectors".
+A Forwarder may alter the message content or header fields in such a way that existing signatures on the message will no longer validate. If so, then a record will be made of these changes. We call a Forwarder that makes such changes a Reviser.
 
-The number of public keys and corresponding selectors for each domain
-is determined by the domain owner. Many domain owners will use just one
-selector, whereas administratively distributed organizations can choose
-to manage disparate selectors and key pairs in different regions or on 
-different email servers.
+## Verifier
 
-Selectors can also be used to delegate a signing authority, which
-can be withdraw at any time. Selectors also make it possible to
-seamlessly replace keys on a routine basis by signing with a new
-selector, while keeping the key associated with the old selector
-available.
+Elements in the mail system that verify signatures are referred to as Verifiers. These may be Forwarders, Revisers, Receivers, MTAs, MDAs, or MUAs. It is an expectation of DKIM2 that a recipient of a message will wish to verify some or all signatures before determining whether or not to accept the message or pass it on to another entity.
 
-## Sender ADMDs 
+## Header Field
 
-[RFC5598] defines a path for messages that starts with hops from an Author
-to an Originator to a Relay, before transiting additional hops on the way 
-to their final destination. In this document, we will collectively refer 
-to those first three hops (Author-->Originator-->Relay) as Sender or Sender
-ADMD.
+As defined in [RFC5322], a header field is a single logical line in the message header consisting of a field name, a colon, and a field body (value). In this document "header field" always refers to a single field; "header fields" (plural) refers to multiple fields. The unqualified term "header" is avoided to prevent ambiguity.
 
-# Signing and Verification Cryptographic Algorithms {#algorithms}
+## Tag
 
-DKIM2 supports multiple hashing and digital signature algorithms. One
-hash function (SHA256) if specified here and two signing algorithms
-are defined by the DKIM2 protocol: RSA-SHA256 and Ed25519-SHA256.
-Signers and Verifiers **MUST** implement SHA256. Signers **SHOULD** implement
-both RSA-SHA256 and Ed25519-SHA256. Verifiers **MUST** implement both
-RSA-SHA256 and Ed25519-SHA256.
+A named element within a header field. A tag consists of a tag-name and a tag-value separated by an equals sign. Tags are separated by semicolons within the header field.
 
-## The SHA256 Hashing Algorithm
+## Message Body
 
-The SHA256 hashing algorithm is used to compute body and
-header hashes as defined in [DKIM2] and
-[DKIM2] The resultant
-values are stored within Message-Instance header fields.
+The content of an email message that follows the blank line after the header fields, treated as a sequence of octets. In this document, the terms "body" and "message body" are used interchangeably.
 
-## The RSA-SHA256 Signing Algorithm
+## Hash
 
-The RSA-SHA256 Signing Algorithm computes a hash over all the Message-Instance
-and DKIM2-Signature header fields as described in [DKIM2] using
-SHA-256 (FIPS-180-4-2015) as the hash-alg.  That
-hash is then signed by the Signer using the RSA algorithm (defined in
-PKCS#1 version 1.5 [RFC8017]) as the crypt-alg and the Signer's
-private key.  The hash **MUST NOT** be truncated or converted into any
-form other than the native binary form before being signed.  The
-signing algorithm **MUST** use a public exponent of 65537.
+A fixed-length value produced by applying a cryptographic hash function (such as SHA-256) to an input. DKIM2 uses hashes to create a compact, verifiable representation of message header fields and the message body.
 
-Signers **MUST** use RSA keys of at least 1024 bits.  Verifiers **MUST** be able
-to validate signatures with keys ranging from 1024 bits to 2048 bits, and
-they **MAY** be able to validate signatures with larger keys.
+## Signing and Verification Cryptographic Algorithms
 
-## The Ed25519-SHA256 Signing Algorithm
+DKIM2 supports multiple hashing and digital signature algorithms. 
 
-The Ed25519-SHA256 Signing Algorithm computes a hash over all the Message-Instance
-and DKIM2-Signature fields as described in [DKIM2] using
-SHA-256 (FIPS-180-4-2015) as the hash-alg. It signs the hash with the PureEdDSA
-variant Ed25519, as defined in Section 5.1 of [RFC8032].
+### Hashing Algorithms
 
-## Other Algorithms
+As of publication of this document, {{DKIM2}} supports two hashing algorithms, SHA256 and SHA512, to create hashes of message header fields and the message body.
 
-Other algorithms **MAY** be defined in the future.  Verifiers **MUST** ignore
-any hashes or signatures using algorithms that they do not implement.
+### Signing Algorithms
 
-## Key Management {#key_management}
+A Signing Algorithm computes a hash over all the Message-Instance and DKIM2-Signature header fields as described in Section 9.6 of {{DKIM2}}. That hash is then signed by the Signer using the RSA algorithm (defined in PKCS#1 version 1.5 {{RFC8017}}) as the crypt-alg and the Signer's private key. As of publication of this document, {{DKIM2}} supports two signing algorithms, RSA-SHA256 and Ed25519-SHA256. 
 
-Some level of assurance is required that
-a public key is associated with the claimed Signer. DKIM2
-does this by fetching the key from the DNS for the domain specified
-in the d= field.
+## Glossary
 
-DKIM2 keys are stored in a subdomain named "_domainkey".  Given a
-DKIM2-Signature field with a "d=" tag of "example.com" and an "s1=" tag
-of "foo.bar", the DNS query will be for "foo.bar._domainkey.example.com".
+The following terms are used throughout this document:
 
-NOTE: these keys are no different, and are stored in the same locations
-as those for DKIM1 ([RFC6376]).
+DKIM1
+: The original DomainKeys Identified Mail protocol as specified in [RFC6376].
 
-Further details can be found in [DKIMKEYS].
+DKIM2-Signature
+: A header field containing a cryptographic signature over the Message-Instance and DKIM2-Signature header fields of a message, along with metadata about the signing domain, SMTP envelope, and timestamp.
 
-# Sender ADMD Actions
+Message-Instance
+: A header field containing cryptographic hashes of the message header fields and body, along with optional Recipes that allow undoing changes made at that hop.
 
-In order to participate in DKIM2, Sender ADMDs **MUST* be Signers. The following sections 
-describe best practices for such Senders.
+Recipe
+: A set of instructions encoded as a JSON object within the r= tag of a Message-Instance header field. Recipes allow a Verifier to reconstruct the previous state of a message from its current state, by specifying which parts of the header fields or body to copy and which literal values to substitute.
 
-## Sign all outgoing messages with DKIM2 and DKIM1 signatures. 
+Chain of Custody
+: The sequence of DKIM2-Signature header fields on a message, each recording the SMTP envelope addresses (MAIL FROM and RCPT TO) used at each hop. A valid Chain of Custody demonstrates that the message followed a plausible path from Originator to the current recipient.
 
-Because it is expected that the transition from DKIM1 to DKIM2 across the email ecosystem will be gradual, Sender
-ADMDs **SHOULD** sign messages with both DKIM1 and DKIM2 keys until such time as the deployment of DKIM2 is effectively 
-ubiquitous.
+Selector
+: A subdivision of the key namespace for a signing domain, used to look up the public key in DNS. The Selector value is combined with the signing domain to form the DNS query name: selector._domainkey.domain.
 
-## Sign with multiple keys
+# Signer Best Practices
 
-To ensure maximum interoperability, Sender ADMDs **SHOULD** sign messages with multiple DKIM2 signatures, with each 
-such signature using a different cryptographic algorithm.
+In order to fully participate in DKIM2, both Originators and Forwarders MUST be Signers. This section describers best practices for the act of signing.
 
-## Only Sign On Exit {#sender-sign-on-exit}
+## Key Size
 
-Many Sender ADMDs originate messages from infrastructure that requires the message transit multiple hops before reaching
-its egress point to travel to its destination. Sender ADMDs **MUST** only apply DKIM2 signatures to messsages only at this
-last hop before it leaves their infrastructure.
+When signing with the RSA-SHA256 Signing Algorithm, Signers MUST use RSA keys of at least 1024 bits and SHOULD use 2048-bit RSA keys.
 
-## Regularly Rotate DKIM Signing Keys
+## Sign With Multiple Keys
 
-Sender ADMDs **SHOULD** follow best practices for rotating DKIM keys, both for DKIM1 and DKIM2 - 
-https://www.m3aawg.org/sites/default/files/m3aawg-dkim-key-rotation-bp-2019-03.pdf
+To ensure maximum interoperability, Signers SHOULD sign messages with multiple DKIM2 signatures, with each such signature using a different cryptographic algorithm.
 
-# Forwarder Actions
+## Sign All Outgoing Messages With DKIM2 and DKIM1 Signatures
 
-A Forwarder participating in DKIM2 **MUST** be a Signer. Further, as mentioned above, a Forwarder might also 
-function as a Reviser and/or a Verifier before passing a message along to the next hop. This section describes 
-the best practices for a Forwarder participating in DKIM2.
+Because it is expected that the transition from DKIM1 to DKIM2 across the email ecosystem will be gradual, Signers SHOULD sign messages with both DKIM1 and DKIM2 keys until such time as the deployment of DKIM2 is effectively ubiquitous.
 
-## Attempt Verification of Existing DKIM Signatures
+## Only Sign on Exit
 
-A Forwarder **MUST** attempt to Verify the DKIM signatures found in a message when it first arrives to the Forwarder.
+Many email messages are sent or forwarded from infrastructure that requires the message to transit multiple hops before reaching its egress point to travel to its destination. Senders MUST apply DKIM2 signatures to messages only at the last hop before the message leaves their infrastructure.
 
-## Sign all outgoing messages with DKIM2 and DKIM1 signatures. 
+## Regularly Rotate DKIM Signing Keys {#rotate-keys}
 
-Forwarders participating in DKIM2 **MUST** be Signers, In addition, for the reason mentioned above in the Sender ADMD Actions 
-section of this document, Forwarders **SHOULD** sign messages with both DKIM1 and DKIM2 keys until such time as the 
-deployment of DKIM2 is effectively ubiquitous.
+Signers SHOULD follow the operational practices described in {{M3AAWG-DKIM-ROTATION}} for rotating DKIM signing keys, applying them to both DKIM1 and DKIM2 key material. In particular:
 
-## Sign Even If Just Forwarding and Not Revising
+* New keys SHOULD be published under a new selector rather than by replacing the key material published under an existing selector, so that messages signed with the outgoing key continue to verify correctly until they have finished transiting the mail system.
 
-Forwarders participating in DKIM2 **MUST** DKIM2 sign any message they handle, regardless of whether or not they 
-Revise the message.  Such signatures maintain a proper DKIM2 "chain of custody" and allow for cleaner verification 
-and unwinding of changes at future hops.
+* Selector names SHOULD NOT be reused once retired, to avoid any ambiguity between a message legitimately signed under the old key and one that is being replayed or forged after the key material has changed.
 
-## Sign with multiple keys
+* Test-mode selectors (the "t=y" flag defined in {{DKIMKEYS}}) SHOULD be used when a new key is first deployed, and Verifiers SHOULD treat signatures that fail verification under a test-mode selector less punitively than an equivalent failure under a production selector, consistent with the DKIM1 experience with this flag.
 
-To ensure maximum interoperability, Forwarders **SHOULD** sign messages with multiple DKIM2 signatures, with each 
-such signature using a different cryptographic algorithm.
+## Keep Signing Clocks Accurate
 
-## Only Sign On Exit {#forwarder-sign-on-exit}
+Verifiers are permitted to treat a DKIM2-Signature header field whose t= timestamp is more than 14 days old, or that lies in the future, with suspicion (Section 8.4 and Section 11.3 of {{DKIM2}}). Originators SHOULD synchronize the clocks on their signing infrastructure using NTP or an equivalent time-synchronization service, so that legitimate mail is not held or rejected because a signing host's clock had drifted into the future or had fallen far enough behind that the resulting timestamp appears implausible to a downstream Verifier.
 
-As with Sender ADMDs, if the Fowarder's infrastructure requires the message to transit multiple hops before reaching
-its egress point to travel to its destination, then the Forwarder **MUST** only apply DKIM2 signatures to messsages
-only at this last hop before it leaves their infrastructure.
+# Originator Best Practices
 
-## Regularly Rotate DKIM Signing Keys
+The following sections describe best practices for Originators. As Originators are also Signers, these sections are additive for Originators to the Signer Best Practices above.
 
-Forwarders **SHOULD** follow best practices for rotating DKIM keys, both for DKIM1 and DKIM2 - 
-https://www.m3aawg.org/sites/default/files/m3aawg-dkim-key-rotation-bp-2019-03.pdf
+## Use Request Flags Deliberately
 
-## Continue doing From munging
+The f= flag values "donotmodify" and "donotexplode" (Section 8.10 of {{DKIM2}}) are strong requests; a Forwarder that cannot honor them is required to prevent the message from reaching any system outside its own control (Section 8.10 of {{DKIM2}}). Originators SHOULD set "donotmodify" only on messages where an unauthorized alteration in transit -- for example, a Reviser rewriting the RFC5322.From header field as described in {{munging}} -- would itself be a problem worth losing delivery over, such as transactional mail or DSNs. Setting "donotmodify" on ordinary bulk or list-eligible mail is NOT RECOMMENDED, since it is likely to cause legitimate, benign intermediary processing (list exploders, DMARC-motivated From munging, etc.) to either strip the request or fail to forward the message at all.
 
-When a message reaches a Forwarder, if the Forwarder determines that the Domain Owner of the RFC5322.From header 
-domain has published a DMARC record for that domain, the Fowarder **SHOULD** alter the RFC5322.From header in 
-such a way as to ensure that the message will not fail DMARC validation when it reaches its destination. Some 
-strategies for doing this are discussed in Section 7.4 of [RFC9989]
+# Forwarder Best Practices
 
-## Bron's idea - Privacy preseving forwarder - remove mention of forward target from bounces
+A Forwarder participating in DKIM2 MUST be a Signer.  In addition, a Forwarder might also function as a Reviser and/or a Verifier before passing a message along to the next hop. This section describes the best practices that are unique to a Forwarder participating in DKIM2, and are additive for Forwarders to the Signer Best Practices above.
 
-Need some text for this...
+## Attempt Verification of Existing DKIM2 and DKIM1 Signatures
 
-# Receiver ADMD Actions
+A Forwarder MUST attempt to verify the DKIM signatures found in a message when it first arrives at the Forwarder. Message handling by the Forwarder for messages that fail DKIM2 verification is a matter of local policy for the Forwarder ADMD. {{message-handling}} in this document may provide some guidance in setting that policy.
 
-Receiving ADMDs in the DKIM2 ecosystem are those that host mailboxes for the domain to which the message
-is ultimately routed. Receiving ADMDs are Verifiers, and depending on local policy, the disposition of the
-message may be influenced by whether or not the message passes DKIM2 verification checks.
+## Sign Even if Just Forwarding and Not Revising
 
-Verification of messages will rely in part on whether or not a full DKIM2 "chain of custody" exists for
-the message, meaning whether or not the Verifier can reliably determine if each hop that handled the message
-prior to its reaching the Receiving ADMD applied a proper DKIM2 signature to the message. We will define
-three conditions, as follows:
+Forwarders participating in DKIM2 MUST DKIM2 sign any message they handle, regardless of whether or not they revise the message. Such signatures maintain a proper DKIM2 Chain of Custody and allow for cleaner verification and unwinding of changes at future hops.
 
-* A message that was DKIM2 signed at its point of egress (as described in [](#sender-sign-on-exit) and [](#forwarder-sign-on-exit))
-  by each ADMD handling the message prior to its reaching the Receiving ADMD is one that "Never Left The DKIM2 Ecosystem"
-* A message that was DKIM2 signed at its point of egress by some, but not all, ADMDs handling the message prior to its reaching
-  the Receiving ADMD is one that was "In and Out of The DKIM2 Ecosystem"
-* A message that contains no DKIM2 signatures when reaching the Receiving ADMD is one that "Never Entered The
-  DKIM2 Ecosystem"
+## Continue Doing From Munging {#munging}
 
-Each condition will come with its own set of recommendations for the Receiving ADMD.
+When a message reaches a Forwarder, if the Forwarder determines that the Domain Owner of the RFC5322.From header domain has published a DMARC policy record for that domain, the Forwarder SHOULD alter the RFC5322.From header field in such a way as to ensure that the message will not fail DMARC validation when it reaches its destination. Some strategies for doing this are discussed in Section 7.4 of {{RFC9989}}.
 
-## Messages That Never Left The DKIM2 Ecosystem {#never-left-dkim2}
+A Forwarder that rewrites the RFC5322.From header field in this way is, by definition, unable to honor a "donotmodify" request on the same message.
 
-If such a message passes DKIM2 Verification performed by the Receiving ADMD, the Receiving ADMD should apply 
-local policy for determining message handling and disposition.
+## Preserve Recipient Privacy When Forwarding {#privacy-forwarding}
 
-If such a message fails DKIM2 Verification performed by the Receiving ADMD, the Receiving ADMD **MAY** safely 
-reject the message under assumption that the DSN(s) will only be sent to entities responsible for transmission 
-of the message. The Receiving ADMD's local policy, however, will dictate final handling and disposition.
+Two related mechanisms in {{DKIM2}} give a privacy-conscious Forwarder tools to avoid revealing, to parties earlier in the Chain of Custody, exactly where a message has been forwarded to.
 
-## Messages That Were In and Out of the DKIM2 Ecosystem {#in-and-out-ecosystem}
+First, the "feedhere" flag (Section 8.10 of {{DKIM2}}) is explicitly intended for this purpose: a Forwarder that receives a message with a "feedback" flag set, and that does not wish the identity of the systems to which it forwards the message to be revealed to the party requesting feedback, sets "feedhere" so that any feedback is routed back through the Forwarder itself rather than being traceable further downstream. Forwarders operating a service where the forwarding target is considered private to the recipient (for example, a personal "forward my mail" alias, as opposed to a corporate relay) SHOULD set "feedhere" whenever they honor a "feedback" request.
 
-Examples of messages that match this condition would be:
+Second, operators should be aware that the Chain of Custody check in Section 11.4 of {{DKIM2}} requires an exact match on the local part of the mf= and rt= addresses, not just the domain. A Forwarder that simply relays a message to the subscriber's real external mailbox using that mailbox's real address will, as a side effect, expose that address (and therefore, in many deployments, the existence of the forwarding relationship) to any party downstream that inspects the DKIM2-Signature header field's rt= tag. Forwarders that wish to avoid this SHOULD deliver to a per-subscriber, per-forward alias local part (an approach analogous in spirit to the Sender Rewriting Scheme used for MAIL FROM in SPF-forwarding scenarios, but applied here to the RCPT TO local part) rather than the subscriber's underlying address, and SHOULD document this practice as part of any privacy disclosure they make to the party whose mail is being forwarded.
 
-* The message was DKIM2 [signed on exit](#sender-sign-on-exit) by the Sender ADMD, and passed through one or 
-  more Forwarders on its way to the Receiver ADMD, and at least one Forwarder ADMD did not DKIM2 sign the message.
-* The message was not DKIM2 signed by the Sender ADMD, and passed through one or more Forwarder ADMDs on its way
-  to the Receiver ADMD, and at least one Forwarder ADMD did DKIM2 sign the message.
+## Honor donotmodify and donotexplode Requests, or Stop Forwarding
 
-(Need text on how to detect that message left DKIM2 Ecosystem)
+If a Forwarder cannot or does not honor a "donotmodify" or "donotexplode" request found in the highest-numbered DKIM2-Signature header field of an incoming message, {{DKIM2}} requires (Section 8.10) that the Forwarder not allow the resulting message (or, for "donotexplode", any of the copies it creates) to be forwarded to any MTA outside its own administrative control. Forwarders SHOULD implement this as an explicit check at the point where a message would otherwise leave the ADMD, rather than relying on it as an incidental property of their processing pipeline, since the consequence of getting it wrong is a Chain of Custody and privacy violation for the sender.
 
-For such messages, local policy will dictate handling. Receiver ADMDs will have to decide whether or not a 
-successful DKIM2 Verification is a condition of message acceptance or whether or not a failed Verification
-might not preclude acceptance but might influence message disposition. Receiver ADMDs that can verify DKIM
-as well as DKIM2 can set a policy to attempt to verify DKIM signatures found in lieu of DKIM2 siganturs for
-a given ADMD in the message's transit chain. As DKIM2 deployment widens and protocol usage matures, Receiver
-ADMDs might alter their local policies to be more reliant solely on DKIM2 Verification.
+## Manage Chain of Custody Across Trust-Boundary ("Imaginary") Hops
 
-## Messages Never Entered The DKIM2 Ecosystem
+A Forwarder that hands a message to another domain under a business or operational arrangement -- for instance, an outsourced bulk-sending or forwarding vendor operating on the ADMD's behalf -- without an actual SMTP hop occurring between the two domains' own infrastructure, MUST preserve the Chain of Custody using the mechanisms in Section 9.3 of {{DKIM2}}: either fabricate a DKIM2-Signature header field with plausible mf=/rt= values for the imaginary hop, or use the nd= tag to name the domain that will apply the next DKIM2-Signature header field in sequence. Operators using the nd= mechanism SHOULD document the out-of-band arrangement referenced in Section 9.3 of {{DKIM2}} (for example, in a contract or a shared operational runbook) so that it can be produced if a downstream Verifier or an abuse desk questions the resulting break in the SMTP-visible Chain of Custody.
 
-Receiver ADMDs participating in DKIM2 will have to establish local policy to dictate what to do with messages
-that arrive bearing no DKIM2 signatures. Those Receiver ADMDs that can verify DKIM signatures as well as DKIM2
-signatures fall back to their existing policies for message disposition based on DKIM verification success or
-failure. This policy may change over time, as Receivers observe what percentage of mail arrives each day bearing
-DKIM2 signatures vice the percentage that arrives without, and how their mailbox holders engage with each kind.
+## Minimize the Content of Recipes
 
-# Interoperability With Other Email Authentication Protocols and Mechanisms
+A Reviser generating a Header Recipe or Body Recipe (Section 5 of {{DKIM2}}) to document a change it has made SHOULD prefer the coarsest-grained Recipe that accurately documents the change. In particular, where a null body Recipe (Section 5.2 of {{DKIM2}}) is a permissible and accurate description of what happened -- because the previous state of the message genuinely cannot, or should not, be reconstructed -- a Reviser SHOULD use it in preference to a content-bearing Recipe that would embed a full or partial copy of removed content into the message headers for every downstream party to see. See Section 7.6 for a fuller discussion of the privacy considerations that motivate this recommendation.
 
-It is anticipated that DKIM2 deployment will happen gradually across the email ecosystem, and that other
-authentication protocols and mechanisms will co-exist alongside DKIM2 for some time. This section discusses
-various interoperability scenarios.
+## Rebuild DSNs Correctly, and With the Same Privacy Awareness
 
-## DKIM1 and DKIM2 Interoperability
+A Forwarder that receives a Delivery Status Notification (DSN) and propagates it back toward the MAIL FROM address recorded in the relevant DKIM2-Signature header field (Section 12.1.1 of {{DKIM2}}) MUST rebuild the embedded message (or its headers) to reflect the state the message was in when the Forwarder sent it onward, which in practice means removing the DKIM2-Signature header field the Forwarder itself added on the outward journey, and undoing, via the recorded Recipes, any modification the Forwarder made. Forwarders SHOULD apply the same privacy judgment described in Section 5.8 when doing this rebuilding: a rebuilt DSN is another vector by which details of a forwarding relationship, or of redacted content described by a Recipe, could unintentionally be disclosed to the original sender.
 
-(might fold this into the preceding sections; alternatively, might want to flesh out the text about treating
- DKIM and DKIM2 equivalently, the backscatter and anti-replay stuff, etc.)
+# Receiver Best Practices
 
-After DKIM2 is published, there will be a period of time during which the ecosystem will contain a mix of 
-DKIM-only [RFC6376] and DKIM2-capable participants; this will mean that there will be a significant volume
-of email messages that meet our definition of ["In and Out of the DKIM2 Ecosystem'](#in-and-out-ecosystem).
+Receivers are Verifiers, and depending on local policy, the disposition of the message may be influenced by whether or not the message passes DKIM2 verification checks.
 
-The preceding sections describe actions for each type of ADMD to take, which can be boiled down to "sign
-with both DKIM and DKIM2 on exit" and "verify both DKIM and DKIM2 for a while, but gradually maybe move to 
-just DKIM2". 
+## Message Handling Based on DKIM2 Verification Results {#message-handling}
 
-DKIM2-capable receivers should verify both DKIM and DKIM2 signatures when found, but that said, should not 
-treat results equivalently.  When forwarding, DKIM2-capable sender should perform DKIM2 signing only when
-the DKIM2 security properties to protect against replay and backscatter are met. This property is met when
-any prior DKIM2 signatures are be valid per [DKIM2].
+Verification of messages will rely in part on whether or not a full DKIM2 Chain of Custody exists for the message, meaning whether or not the Verifier can reliably determine if each hop that handled the message prior to its reaching the Receiver applied a proper DKIM2 signature to the message. We define three conditions, as follows:
 
-DKIM does not provide the same anti-replay and backscatter protections that DKIM2 can.  Consequently DKIM2-capable
-participant should not DKIM2 sign a forwarded message with the same consideration if there is only DKIM signatures
-available.  Under certain circumstances a DKIM2-capable forwarder may choose to DKIM2 sign a message with 
-a prior DKIM signature if it can be certain that the message was not replayed or introduce backscatter 
-using local-policy.   Some properties to consider are looking for the same anti-replay and backscatter
-properties described in [DKIM2] except signed with the DKIM signature.  Typically this only is only apparent
-for DKIM signed messages at origination, meaning when the payload From header is DMARC aligned with the
-DKIM signed domain and the signature is valid.  Forwarders may wish to consider other validations under
-local-policy as well.  
+* A message that was DKIM2 signed at its point of egress by each ADMD handling the message prior to its reaching the Receiver is a message that "Never Left the DKIM2 Ecosystem".
 
-## DMARC and DKIM2 Interoperability
+* A message that was DKIM2 signed at its point of egress by some, but not all, ADMDs handling the message prior to its reaching the Receiver is a message that was "In and Out of the DKIM2 Ecosystem".
 
-For messages that [never left the DKIM2 ecosystem](#never-left-dkim2), it can be argued that DMARC is
-unnecessary, especially in the case where the Receiver ADMD has a policy of rejecting such messages when
-they fail DKIM2 verification.
+* A message that contains no DKIM2 signatures when reaching the Receiver is a message that "Never Entered the DKIM2 Ecosystem".
 
-Since DKIM2 is meant to address the shortcomings of its predecessor email authentication protocols, it
-seems unlikely that DKIM2 will be added to the list of Authentication Mechanisms underpinning DMARC, as
-discussed in Section 4.3 of [RFC9989]. However, since DKIM2 could fulfill such a role, Receiver ADMDs
-participating in DMARC should be prepared to include DKIM2 verification checks in DMARC validation logic
-should it come to that.
+Each condition comes with its own set of recommended best practices for the Receiver.
 
-Even if DKIM2 both does not become an Authentication Mechanism underpinning DMARC and is generally agreed
-to render DMARC validation obsolete, the reporting component of DMARC still might come into play. DKIM2
-is designed to route bounces back along the chain of custody to the message's origination point, so by 
-definition a Domain Owner (as defined in [RFC9989]) will not see bounces for messages that were not
-originated by the Domain Owner. Therefore, if DKIM2 support is added to [RFC9990], Receiver ADMDs 
-participating in DMARC should consider supporting such reporting.
+### Messages That Never Left the DKIM2 Ecosystem {#never-left}
 
-## Implications of Requesting Feedback
+If the Receiver, in its role as Verifier, determines that a message that never left the DKIM2 ecosystem passes verification checks, then the Receiver should apply local policy for determining message handling and disposition.
 
-???
+On the other hand, if such a message fails DKIM2 verification performed by the Receiver, the Receiver MAY safely reject the message during the SMTP transaction, since {{DKIM2}} (Section 10.1) ensures that DSN(s) will only be sent to entities responsible for transmission of the message. The Receiver's local policy, however, will dictate final handling and disposition; see {{reply-code}} for guidance on choosing an appropriate SMTP reply code.
 
-## Talk About RFC 8601 Status Codes
+### Messages That Were In and Out of the DKIM2 Ecosystem {#in-and-out}
 
-(Wait till Richard has put some text in the main spec and riff on that.)
+Examples of messages that match this condition include, but are not necessarily limited to, the following:
 
-## Discussion re: Maximum Number of Message-Instance versions and DKIM2-Signatures
+* The message was DKIM2 signed on exit by the Originator, and passed through one or more Forwarders on its way to the Receiver, and at least one Forwarder did not DKIM2 sign the message.
 
-Yea, verily, there **SHOULD** be no more than X Message-Instance versions and Y DKIM2-Signatures
-in a message.
+* The message was not DKIM2 signed by the Originator, and passed through one or more Forwarders on its way to the Receiver, and at least one Forwarder did DKIM2 sign the message.
 
-See mailing list thread - subject `draft-clayton-dkims2-spec-07`
+Detecting that a message falls into this condition, as opposed to "Never Left the DKIM2 Ecosystem", is not always straightforward, because {{DKIM2}} deliberately does not rely on SMTP trace header fields (Section 4 of {{DKIM2}} requires Received: and similar trace fields to be ignored) to establish the Chain of Custody; the Chain of Custody is instead entirely self-described via the sequence of DKIM2-Signature header fields. A Verifier therefore cannot, in general, directly observe that a hop *should* have signed and did not; it can only observe the Chain of Custody that *is* present. Verifiers SHOULD use a combination of the following heuristics, none of which is individually conclusive, to make this determination for local-policy purposes:
+
+* A relaxed domain match failure, or an outright break, in the Chain of Custody at some point in the sequence of DKIM2-Signature header fields (Section 9.4 and Section 11.4 of {{DKIM2}}) that is not explained by a properly documented imaginary hop (Section 9.3 of {{DKIM2}}) is strong evidence that the message left and re-entered the DKIM2 ecosystem at that point.
+
+* Verifiers that also verify DKIM1 signatures can compare what the DKIM1 chain (to the extent DKIM1 provides one) and the DKIM2 Chain of Custody each imply about the message's path; a domain that signed with DKIM1 but has no corresponding entry in the DKIM2 Chain of Custody is a plausible signal that the domain forwarded the message without being DKIM2-aware.
+
+* Receivers MAY maintain a locally curated allowlist of domains and services that are known, from direct relationship or public announcement, to be DKIM2 Signers; the unexplained absence of such a domain from an otherwise plausible Chain of Custody is a useful, if non-authoritative, signal.
+
+For such messages, local policy will dictate handling. Receivers will have to decide whether or not a successful DKIM2 verification is a condition of message acceptance, or whether a failed verification might not preclude acceptance but might instead influence message disposition. Receivers that can verify DKIM1 as well as DKIM2 can set a policy to attempt to verify DKIM1 signatures found in lieu of DKIM2 signatures for a given ADMD in the message's transit chain. As DKIM2 deployment widens and protocol usage matures, Receivers might alter their local policies to be more reliant solely on DKIM2 verification.
+
+### Messages That Never Entered the DKIM2 Ecosystem {#never-entered}
+
+Receivers participating in DKIM2 will have to establish local policy to dictate what to do with messages that arrive bearing no DKIM2 signatures. Those Receivers that can verify DKIM1 signatures as well as DKIM2 signatures should fall back to their existing policies for message disposition based on DKIM1 verification success or failure. This policy may change over time, as Receivers observe what percentage of mail arrives each day bearing DKIM2 signatures versus the percentage that arrives without, and how their mailbox holders engage with each kind. Receivers  SHOULD NOT, during the transitional period discussed throughout this document, treat the mere absence of a DKIM2 signature as a rejection-worthy signal on its own.
+
+## Choose Appropriate Verification Result Handling {#reply-code}
+
+{{DKIM2}} defines four verification output states -- PASS, FAIL, PERMERROR, and TEMPERROR (Section 11.1 of {{DKIM2}}) -- chosen for compatibility with the Authentication-Results header field ({{RFC8601}}); see also {{auth-results}}. Receiving ADMDs SHOULD map these states onto SMTP handling as recommended in Section 10.4 of {{DKIM2}}:
+
+* A FAIL or PERMERROR result that, under local policy, is grounds for rejection SHOULD be rejected during the SMTP conversation with a 550/5.7.x reply code, rather than accepted and later bounced, both to avoid backscatter and to give the sending system immediate, actionable feedback.
+
+* A TEMPERROR result caused by a transient inability to retrieve a public key or complete a DNS lookup SHOULD be reported with a 451/4.7.5 reply code, so that the sending MTA understands the failure is transient and will retry; cryptographic verification failures (FAIL, PERMERROR) MUST NOT be reported with a 4xx code.
+
+* A PASS result gives the Receiving ADMD a basis for applying positive local policy (trust, reputation, reduced filtering, etc.), but, as {{DKIM2}} is careful to note, does not by itself attest that the message is wanted, valuable, or that any modifications documented along the way were benign.
+
+## Validate Inbound DSNs Before Acting on Them
+
+A Receiving ADMD that accepts a DSN referencing a DKIM2-signed original message SHOULD perform the verification described in Section 12.1.2 of {{DKIM2}}, and SHOULD reject a DSN that fails this verification with a 550/5.7.x reply code (or a 4xx code if the failure is transient, per Section 6.4) rather than deliver or act upon it. This protects mailbox holders from spoofed bounce traffic and preserves the backscatter protection that is one of DKIM2's principal design goals (see Section 12 of {{DKIM2}}, and Section 8 of this document).
+
+# Interoperability With Other Authentication Protocols and Mechanisms
+
+It is anticipated that DKIM2 deployment will happen gradually across the email ecosystem, and that other authentication protocols and mechanisms will co-exist alongside DKIM2 for some time.
+
+## DKIM1 and DKIM2 Interoperability {#coexist}
+
+After DKIM2 is published, there will be a period of time during which the ecosystem will contain a mix of DKIM1-only ({{RFC6376}}) and DKIM2-capable participants; this will mean that there will be a significant volume of email messages that qualify as "In and Out of the DKIM2 Ecosystem" or "Never Entered the DKIM2 Ecosystem" described in {{message-handling}}.
+
+During this period, Signers SHOULD sign with both DKIM1 and DKIM2 on exit, and Receiving ADMDs SHOULD verify both DKIM1 and DKIM2, treating a DKIM2 PASS as the stronger signal of the two when both are present. As DKIM2 deployment matures, Receiving ADMDs are expected to gradually shift toward relying primarily on DKIM2 verification, both because DKIM1 does not provide the anti-replay and anti-backscatter protections that DKIM2, and to reduce the operational cost of maintaining two parallel verification paths indefinitely.
+
+## ?? DMARC and DKIM2 Interoperability ??
+
+For messages that never left the DKIM2 ecosystem ({{never-left}}), it can be argued that DMARC is unnecessary, especially in the case where the Receiver has a policy of rejecting such messages when they fail DKIM2 verification.
+
+As of this document's publication, DKIM2 is not listed in Section 4.3 of {{RFC9989}} as an Authentication Mechanism for determining an Authenticated Identifer as DMARC defines the term. Whether or not DMARC will be updated to include DKIM2 as an Authentication Mechanism is an open question at this time.  However, since DKIM2 could fulfill such a role, Receiver ADMDs participating in DMARC should be prepared to include DKIM2 verification checks in DMARC validation logic should it come to that.
+
+Even if DKIM2 both does not become an Authentication Mechanism underpinning DMARC and is generally agreed to render DMARC identifier alignment checking obsolete, the reporting component of DMARC still might come into play. DKIM2 is designed to route bounces back along the Chain of Custody to the message's origination point, so by definition a Domain Owner (as defined in {{RFC9989}}) will not see bounces for messages that were not originated by the Domain Owner, which is one of the principal problems DMARC aggregate reporting ({{RFC9990}}) was designed to surface. Domain Owners should not expect DMARC aggregate reports to disappear in lockstep with DKIM2 deployment; visibility into third-party sending and misconfiguration is likely to remain valuable independent of DKIM2's authentication guarantees.
+
+## ?? Implications of Requesting Feedback ??
+
+The "feedback" flag (Section 8.10 of {{DKIM2}}) lets a Signer ask that it be told how a message was handled during delivery and afterward, but {{DKIM2}} deliberately does not define what such feedback consists of or how it is delivered; that is left for future specification and operational practice.
+
+Pending such a specification, this document recommends that implementers look to the existing operational precedent for feedback loops between mailbox providers and senders, namely the Abuse Reporting Format ({{RFC5965}}) and the operational recommendations in {{RFC6449}}, as a starting point for what a DKIM2 feedback message might contain (for example, a machine-readable disposition such as "read", "deleted-unread", or "marked-as-spam") and how it might be transported (for example, as an email addressed back along the Chain of Custody, analogous to a DSN, or via an out-of-band API).
+
+Receiving ADMDs that choose to honor "feedback" requests SHOULD treat doing so as an opt-in courtesy extended to trusted or well-behaved Signers, not as a protocol obligation, and SHOULD be conservative about what information is disclosed in any feedback they provide, particularly where doing so could reveal information about an individual mailbox holder's behavior to a third party. Signers requesting feedback SHOULD NOT treat its absence as a signal of anything in particular, since a Receiving ADMD is free to ignore the request entirely.
+
+Forwarders that wish to relay feedback requests without exposing their own downstream topology should set "feedhere", as described in {{privacy-forwarding}}.
+
+## DKIM2 and the Authentication-Results Header Field {#auth-results}
+
+{{DKIM2}} designed its four verification output states (Section 11.1 of {{DKIM2}}) explicitly for compatibility with the Authentication-Results header field defined in {{RFC8601}}. At the time of this document's publication, {{DKIM2}}'s IANA Considerations section has not yet registered a corresponding authentication method name. That said, {{DKIM2AUTH}} exists, although it has not yet been adopted by the DKIM Working Group. 
+
+If {{DKIM2AUTH}} is adopted by the DKIM Working Group, then its contents will speak on this topic, and this section can likely be deleted from this document. If it is not adopted, then this section can be revisited.
+
+## Discussion re: Maximum Number of Message-Instance and DKIM2-Signature Header Fields {#maxheaders}
+
+{{DKIM2}} does not impose a protocol-level limit on the number of Message-Instance or DKIM2-Signature header fields a message may accumulate; each is added, at most, once per hop, and the number of hops a message may legitimately transit is itself unbounded in the general case (this mirrors the position SMTP itself takes with respect to Received: header fields). {{DKIM2}} does, however, bound the number of hash and signature *entries* that may appear within a single such header field (Section 11.2 of {{DKIM2}} prohibits a duplicate hash algorithm or a duplicate selector within one header field).
+
+This has been raised, but not resolved, on the Working Group mailing list (see the discussion around draft-clayton-dkim2-spec-07) as a potential denial-of-service concern: a message with an implausibly large number of Message-Instance or DKIM2-Signature header fields forces a Verifier to do a correspondingly large amount of cryptographic and Recipe-reconstruction work before it can reach a verdict.
+
+Pending Working Group consensus on whether, and how, {{DKIM2}} should bound this at the protocol level, this document RECOMMENDS that implementations impose a local, configurable ceiling on the number of Message-Instance and DKIM2-Signature header fields they are willing to process for a single message (in the same way many SMTP implementations impose a practical ceiling on the number of Received: header fields they will relay through), and treat a message exceeding that ceiling as a PERMERROR rather than expend unbounded verification effort on it. This document does not recommend a specific numeric value, since a sensible ceiling depends heavily on deployment context (for example, an internal enterprise relay chain may legitimately be longer than a typical Internet path); operators should set this based on their own observed hop counts plus a reasonable safety margin.
 
 ## Data Privacy
 
-From "Privacy and legal implications of body recipes in draft-clayton-dkim2-spec" thread:
+{{DKIM2}}'s Recipe mechanism (Section 5 of {{DKIM2}}) is, by design, capable of recording enough information about a change made to a message to let a downstream Verifier reconstruct the message as it looked before that change. This is a deliberate and valuable property for the common case -- an intermediary rewrapping a message, adding a footer, or making some other routine, non-sensitive alteration -- but it creates a structural tension in at least two deployment scenarios that this document believes warrant explicit guidance, consistent with the data-minimization and transparency principles discussed in {{RFC6973}}:
 
-Two specific cases with acute legal implications
+* **Data Loss Prevention (DLP).** A DLP system that redacts a credit card number, personal health information, or other confidential business data from a message body does so precisely because that data must not circulate further. A body Recipe that would let a downstream party reconstruct the redacted content before it was removed creates exactly the structured, portable record of that data that the DLP system exists to prevent. This is not simply a matter of the protocol collecting more data than before; it is a direct conflict between the purpose of the DLP system and what a content-bearing Recipe would ask it to generate and transmit.
 
-Beyond the general data minimization question, two specific deployment scenarios create problems that 
-cannot be addressed by the "nothing changes" argument and that I believe require explicit treatment in 
-the specification:
+* **Antivirus and attachment sanitization.** When a gateway strips a malicious attachment and would otherwise generate Recipe information describing the removed content, it creates a record of content that was, by design, meant to be eliminated rather than preserved and forwarded to every downstream party.
 
-DLP systems that redact sensitive content - 
-a Data Loss Prevention system that obscures a credit card number, 
-personal health information, or confidential business data does so precisely because that data must not circulate. 
-A body recipe that allows reconstruction of the content before redaction creates a structured record of the very 
-data that the DLP system was designed to protect. This is not a question of collecting more data than before, it's 
-a structural contradiction between the purpose of the DLP system and what the protocol asks it to generate. In some 
-jurisdictions this may raise compliance questions that go beyond data minimization.
+In both cases, {{DKIM2}}'s null-Recipe mechanism (Section 5.2 of {{DKIM2}}, "if the 'b' field is null ... the previous state of the message body cannot be recreated") provides the technical escape hatch: the intermediary can declare a null body Recipe rather than generating a content-bearing one. This document RECOMMENDS that:
 
-Antivirus systems that remove malicious attachments - 
-when an antivirus gateway removes a malicious attachment and generates recipe information about the removed content,
-it creates records of content that should have been eliminated. The transmission of these records in message headers 
-to all downstream systems raises questions about legal basis and retention limits that the specification does not address.
+* Operators of DLP, antivirus, and similar sanitizing intermediaries treat generation of a content-bearing Recipe for material their system exists to remove as something requiring affirmative, considered justification, and default instead to a null Recipe (see also Section 5.11).
 
-In both cases the null recipe mechanism provides a technical escape: the intermediary can declare null rather than 
-generating a content-bearing recipe. But the specification does not currently provide guidance on when intermediaries 
-are legally or ethically obligated to use null recipes, nor does it address the compliance implications of the choice. 
-Without this guidance, implementers in GDPR jurisdictions are left to navigate these obligations independently and inconsistently.
+* Operators consult their own legal counsel regarding retention and disclosure obligations (for example, under GDPR or similar regimes) before enabling content-bearing Recipes for any Reviser that handles regulated data, since {{DKIM2}} itself does not, and as a signing protocol probably should not, attempt to adjudicate that question.
 
-Look to RFC 6973 as a guide is probably a grand idea
+* Verifiers and reputation systems treat a null body Recipe from a known-legitimate security or compliance intermediary as an expected, unremarkable occurrence rather than as a signal of reduced trustworthiness, so that operators are not discouraged from making the privacy-protective choice.
 
-## Whither DMARC??
+This remains an area of active Working Group discussion, and later revisions of this document, or of {{DKIM2}} itself, may provide more specific guidance.
 
-## Whither SPF??
+## ?? Whither DMARC ??
+
+Section 7.2 addressed how DKIM2 and DMARC could interoperate during the transition period. A separate, longer-range question is whether DMARC has a continuing role once DKIM2 deployment is effectively ubiquitous.
+
+DKIM2's Chain of Custody and replay/backscatter protections cover a good deal of the ground that motivated DMARC's identifier-alignment check and much of its reporting, which is one reason Section 7.2 suggests that DMARC's authentication role could in principle become redundant for messages that never left the DKIM2 ecosystem. What DKIM2 does not currently provide is anything resembling DMARC's policy-publication mechanism -- a Domain Owner's ability to publish, in the DNS, a machine-readable statement of its message handling preference should mail claiming to be from that domain fail authentication (DMARC's p=reject/quarantine/none). Nothing in {{DKIM2}} or {{DKIMKEYS}} today gives a Signer a way to make an analogous statement about how strictly its own signatures should be treated.
+
+Whether such a mechanism should be added to a future revision of DKIM2, layered on top of it, or left to DMARC (running alongside, rather than replaced by, DKIM2) indefinitely, is an open architectural question that this document does not attempt to resolve. It can be argued that full deprecation of DMARC, if it happens at all, is realistically a multi-year process gated on DKIM2 deployment reaching a very high fraction of Internet mail, and would in any case require its own dedicated Standards Track or BCP effort rather than being decided as a side effect of this document.
+
+## ?? Whither SPF ??
+
+SPF ({{RFC7208}}) authorizes, at the DNS level, which hosts may use a given domain in the SMTP MAIL FROM command, independent of anything about the message content. DKIM2's relaxed domain match algorithm (Section 9.4 of {{DKIM2}}) already requires that the signing domain (d=) of the most recently applied DKIM2-Signature header field align with the domain of the mf= value used on the wire (Section 11.4 of {{DKIM2}}), which gives a Verifier of a DKIM2-signed message an alignment guarantee similar in spirit to what SPF alignment provides today, without a separate DNS lookup against an SPF record.
+
+This overlap does not make SPF redundant in the near term, for at least two reasons. First, SPF's check happens, and can cause a message to be rejected, during the SMTP transaction itself and before any message content (and therefore any DKIM2 signature) has necessarily been examined, which is operationally useful independent of DKIM2. Second, and more fundamentally, SPF is the only one of the two mechanisms that says anything about messages that "Never Entered the DKIM2 Ecosystem" {{never-entered}}; for that category of mail, which this document expects to remain significant throughout the transition period discussed in {{coexist}}, SPF continues to provide value that DKIM2 does not.
+
+This document therefore RECOMMENDS that Receiving ADMDs continue to perform SPF checks alongside DKIM2 verification for the foreseeable future, as a defense-in-depth measure and as a fallback for the "Never Entered" case, and does not anticipate SPF becoming safe to retire on any timeline shorter than the one discussed for DMARC in Section 7.7.
+
+# Security Considerations
+
+This section discusses operational security considerations for deployers of DKIM2; it complements, rather than duplicates, the protocol-level Security Considerations to be provided by {{DKIM2}} itself, which at the time of this writing is still marked "TBA" in that document.
+
+**DNS integrity.** Both DKIM1 and DKIM2 depend on the integrity of DNS responses for the public keys used in verification (Section 3.5, {{DKIMKEYS}}). Operators SHOULD deploy DNSSEC on zones publishing DKIM2 key records where feasible, and Verifiers that perform DNS resolution themselves SHOULD use a resolver configuration that validates DNSSEC where available, to reduce the risk of key-substitution attacks via DNS cache poisoning or on-path spoofing.
+
+**Downgrade risk during coexistence.** During the extended period in which DKIM1 and DKIM2 coexist {{coexist}}, an on-path attacker who can strip a DKIM2-Signature header field (but not a DKIM1 signature, which validates independently, or vice versa) may be able to induce a Receiving ADMD that has not yet made DKIM2 verification mandatory to fall back to weaker DKIM1-only handling. Receiving ADMDs SHOULD treat a message that carries a plausible DKIM1 signature but no DKIM2 signature from a domain otherwise known to sign with DKIM2 as an anomaly worth additional scrutiny, rather than silently accepting the DKIM1-only result at face value.
+
+**Resource exhaustion via unbounded chains.** As discussed in {{maxheaders}}, {{DKIM2}} does not currently bound the number of Message-Instance or DKIM2-Signature header fields a message may carry, each of which requires cryptographic work to verify. Implementations SHOULD impose a local ceiling as described in that section to avoid a denial-of-service vector.
+
+**Trust in Reviser-supplied Recipes.** A Recipe is, in effect, an assertion made by the Reviser as to the message's previous content prior to the application of the Recipe. {{DKIM2}} lets a downstream Verifier check that a Recipe, once applied, reproduces the hash values covered by the previous hop's signature, but it cannot detect a Reviser that has colluded with, or been compromised by, an attacker to construct a self-consistent but misleading history for a message it originated or altered in bad faith. Reputation and trust decisions based on DKIM2 Chain of Custody data SHOULD, as with DKIM1 and ARC before it, weight the trustworthiness of each Reviser in the chain rather than treating a self-consistent chain as, by itself, proof of benign handling.
+
+**Privacy exposure via Recipes, envelope tags, and feedback.** Elsewhere in this document the reader will find discussions on the topics of the exposure of forwarding-target identities via the rt= tag, the exposure of removed or redacted content via content-bearing Recipes, and the exposure of handling information via the "feedback" mechanism. Implementers and operators SHOULD treat each of these as a data-minimization decision to be made deliberately, not as an incidental side effect of correctly implementing the protocol.
+
+**Key management.** The key rotation guidance in {{rotate-keys}} exists in part for security reasons: a selector that is reused after its key material changes, or a private key that is not rotated on a reasonable cadence, increases the impact of any eventual key compromise. Operators SHOULD treat DKIM2 key management with at least the same rigor they apply to DKIM1 today.
+
+# IANA Considerations
+
+This document has no IANA actions of its own. Section 7.4 discusses a registration this document recommends that {{DKIM2}} make, in due course, in the registries established by {{RFC8601}}; that registration, if made, is properly the responsibility of {{DKIM2}} or a future revision of it, not of this document.
+
+# Acknowledgments
+{: numbered="false"}
+
+The author thanks Richard Clayton, Wei Chuang, and Bron Gondwana for their work on the DKIM2 base specification, and the participants of the IETF DKIM Working Group for the mailing list discussion that shaped much of the text in this document.
 
 --- back
 
+# Change Log
+{: numbered="false"}
 
-Changes from Earlier Versions
-=============================
+*This section is to be removed by the RFC Editor before publication.*
 
-\[\[This section to be removed by RFC Editor\]\]
+## Since draft-ietf-dkim-dkim2-bcp-00
+{: numbered="false"}
+
+* This version contains many changes from the previous version, to include document reorganization, retitling of some sections, and wholesale changes to text. These changes reflect the dynamic nature of the ongoing development of DKIM2 and the significant time that passed between publication of draft-ietf-dkim-dkim2-bcp-00 and this version.
 
