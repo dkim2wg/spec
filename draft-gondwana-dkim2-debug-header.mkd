@@ -1,0 +1,350 @@
+---
+title: A Diagnostic Header Field for DKIM2 Implementations
+abbrev: DKIM2 Debug Header
+docname: draft-gondwana-dkim2-debug-header-00
+submissionType: IETF
+number:
+date:
+v:
+category: info
+updates:
+ipr: trust200902
+keyword: Internet-Draft
+stand_alone: yes
+pi: [toc, sortrefs, symrefs]
+
+author:
+ -
+    ins: B. Gondwana
+    name: Bron Gondwana
+    org: Fastmail Pty Ltd
+    street: Level 2, 114 William Street
+    code: 3000
+    country: Australia
+    phone: "+61 457 416 436"
+    email: brong@fastmailteam.com
+
+normative:
+    RFC2119:
+    RFC5234:
+    RFC5322:
+    DKIM2: I-D.ietf-dkim-dkim2-spec
+
+informative:
+    RFC5598:
+    AUTHRES: I-D.gondwana-dkim2-authres
+
+--- abstract
+
+Implementations of DomainKeys Identified Mail Signatures v2 (DKIM2)
+benefit from seeing extra debug information during the early deployment
+phase.
+
+This document is intended to help testers, and unlikely to be published.
+
+--- middle
+
+# Introduction
+
+DKIM2 ([DKIM2]) software generates Message-Instance and
+DKIM2-Signature header fields.  Validators also create
+Authentication-Results headers that may include dkim2 status.
+
+During interoperability testing it is useful to have debug
+information in a consistent place, so testers can examine the
+headers and see what disagreement or misunderstanding may have
+caused failures.
+
+Several testing implementations already create a header field called
+X-DKIM2-Info.  This document describes how to create it.
+
+Nothing in this document is normative, and [DKIM2] does not
+depend on it.
+
+# Terminology and conventions
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+[RFC2119].  These words take their normative meanings only when they
+are presented in ALL UPPERCASE.
+
+Basic email terminology is taken from [RFC5598]. The terms Signer,
+Verifier, Originator, Message-Instance, Recipe and Chain of Custody
+are used as defined in [DKIM2].
+
+Syntax descriptions use Augmented BNF (ABNF) [RFC5234]. The tokens
+"FWS", "CRLF", "VCHAR" and "WSP" are imported from [RFC5322].
+
+An "emitter" is any piece of software which adds an X-DKIM2-Info
+header field to a message. An "action" is the single step in DKIM2
+processing which one such field records.
+
+# The "X-" name {#why-x}
+
+[DKIM2] excludes from its header hash every header field whose name
+begins with "x-", so this field can be added at any point, by any
+system, without changing any Message-Instance header hash or
+invalidating any DKIM2-Signature.
+
+# No protocol meaning
+
+An X-DKIM2-Info header field is not a verification result.  If the
+software is generating an Authentication-Results ([AUTHRES]) data
+then the verification result goes there.
+
+The field is not signed, nor covered by any hash.  It only records what
+the emitter says it did.  Software MUST NOT make any decision about a
+message on the basis of an X-DKIM2-Info header field.
+
+# The X-DKIM2-Info header field {#field}
+
+## Syntax {#syntax}
+
+The value is a sequence of tag-value pairs separated by semicolons,
+in the style of the DKIM2-Signature header field.
+
+    info-field  = "X-DKIM2-Info:" [FWS] tag-list [FWS] CRLF
+    tag-list    = tag-spec *( [FWS] ";" [FWS] tag-spec )
+    tag-spec    = tag-name "=" tag-value
+    tag-name    = ALPHA *( ALPHA / DIGIT / "-" )
+    tag-value   = *( tv-char / FWS )
+    tv-char     = %x21-3A / %x3C-7E
+                  ; VCHAR except ";"
+
+A tag-value may contain "=", ",", "(", ")" and space. It MUST NOT
+contain ";", which separates tags. There is no quoting mechanism; an
+emitter MUST replace or remove ";" in any value it substitutes.
+
+Five tags are always present, in the order "draft", "repo", "date",
+"sw", "action", followed by any supplementary tags in alphabetical
+order. Tag names are lower case. Unknown tags MUST be ignored. A
+message may carry any number of X-DKIM2-Info fields, from any number
+of emitters.
+
+## Provenance tags {#provenance}
+
+These identify the software which emitted the field. They are the
+same in every field an emitter produces.
+
+draft:
+: The [DKIM2] revision the emitter implements, without the "draft-"
+  prefix, for example "ietf-dkim-dkim2-spec-06".
+
+repo:
+: Where the emitter's source code lives, as host and path with no
+  scheme, for example "git.example.com/dkim2". For DKIM2 code
+  embedded in larger software, this names the fork carrying it.
+
+date:
+: The date the emitter's DKIM2 behaviour last changed, as YYYY-MM-DD.
+  A version stamp for the code, not the date of the draft. Bump it on
+  any change to what is emitted.
+
+sw:
+: The program within "repo" which emitted the field, for example
+  "inbound-filter".
+
+## The action tag {#action-tag}
+
+action:
+: What the emitter did at the point it added this field. One action
+  per field; several actions mean several fields.
+
+An action value is a short verb, optionally followed by "=" and a
+result, optionally followed by space-separated qualifiers:
+
+    action-value = verb [ "=" result ] *( SP qualifier )
+
+The vocabulary is in {{actions}}.
+
+## Supplementary tags {#supplementary}
+
+hc:
+: The number of header fields in the header hash of the
+  Message-Instance this field describes. Fields, not names: two "To"
+  fields both hashed count two.
+
+hn:
+: The names of those fields, lower case, in the order they were
+  hashed (which [DKIM2] defines as alphabetical), comma-separated
+  with no whitespace. A name appears once per field, so the list may
+  contain duplicates; its length equals "hc", and it is empty when
+  "hc" is 0.
+
+snapf:
+: "Snapshot fetched": the identifier of the stored earlier copy of
+  the message the emitter diffed against to compute a Recipe.
+
+snaps:
+: "Snapshot stored": the identifier under which the emitter stored
+  the message in its current state, for a later Recipe.
+
+Snapshot identifiers are meaningful only to the emitter which wrote
+them; examples might be a database record id, or a path on disk.
+
+# Actions {#actions}
+
+The actions any emitter may record, with their supplementary tags.
+An emitter MAY record other actions in the same form; a reader should
+not expect them from other software.
+
+## `verify=<result>` {#verify}
+
+The emitter verified the message on receipt. The result is one of
+the four [DKIM2] output states in lower case, or "none" if there was
+no DKIM2-Signature, optionally followed by a free-text explanation in
+parentheses:
+
+    action=verify=pass (i=1..2 verified)
+    action=verify=fail (Message-Instance m=2 header hash
+      mismatch (sha256))
+    action=verify=none (no DKIM2-Signature headers found)
+
+The authoritative result is in Authentication-Results ([AUTHRES]).
+No supplementary tags.
+
+## `mi-m<N>` {#mi}
+
+The emitter added a Message-Instance with "m=" N. Accompanied by
+"hc" and "hn"; where a snapshot store is used, also "snaps" and, for
+N above 1, "snapf".
+
+An emitter which found the topmost Message-Instance still matched,
+and added nothing, records no action.
+
+## `sign d=<domain> a=<algorithm>` {#sign}
+
+The emitter added a DKIM2-Signature with that Signing Domain and
+algorithm. No supplementary tags.
+
+## `not-signed=<reason>` {#not-signed}
+
+The emitter was asked to sign and declined. The reason is a short
+token chosen by the emitter, for example "broken-mi-chain" when the
+Message-Instance chain would not undo to "m=1". No supplementary
+tags.
+
+# Emitter behaviour {#emitter}
+
+One field per action. An emitter MUST NOT combine actions into one
+field, and MUST NOT modify or remove any X-DKIM2-Info field already
+present.
+
+The field goes at the top of the header block when the action is
+taken. Where the action added a header field, the emitter MUST add
+that field first and the X-DKIM2-Info after it, so the X-DKIM2-Info
+sits immediately above the field it describes.
+
+The value is folded. Folding MUST happen only after the ";" between
+tags or after a "," inside a list; a consumer MUST ignore whitespace
+next to ";" and ",". An emitter MUST NOT fold inside a token.
+
+The field is excluded from the [DKIM2] header hash by the "x-" rule
+({{why-x}}). An emitter MUST NOT include it in anything it signs or
+hashes.
+
+# Reading the field {#reading}
+
+The field is for a person reading a message which did not verify.
+
+* Which software touched this, and to which draft? Compare "draft",
+  "repo", "sw" and "date" across the fields.
+
+* Why does the header hash of "m=2" not match? Compare the "hn" of
+  the "mi-m2" field with the names the Verifier hashed.
+
+* Why did the Recipe not undo? Take "snapf" from the failing "mi-m"
+  field to the emitter's operator.
+
+* Why was this not signed? Look for "not-signed", else for a "verify"
+  that is not "pass".
+
+# Examples
+
+Line breaks and indentation follow [RFC5322] folding. Domains,
+repositories and program names are examples.
+
+An inbound filter verified a message and, finding no
+Message-Instance, added "m=1":
+
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
+      repo=git.example.net/dkim2; date=2026-08-28;
+      sw=inbound-filter; action=mi-m1; hc=8;
+      hn=content-type,date,from,message-id,mime-version,subject,
+      to,to;
+      snaps=a5/a5440deb07cdcf63cd16bfaa29d9a87c0b97a300e1c2d3f4
+    Message-Instance: m=1; ...
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
+      repo=git.example.net/dkim2; date=2026-08-28;
+      sw=inbound-filter; action=verify=none (no DKIM2-Signature
+      headers found)
+    Authentication-Results: mx.example.net; dkim2=none
+
+The same message after a mailing list recorded its changes as "m=2":
+
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
+      repo=git.example.org/listmanager; date=2026-08-28;
+      sw=listmanager; action=mi-m2; hc=18;
+      hn=archived-at,content-type,date,feedback-id,from,list-archive,
+      list-help,list-id,list-owner,list-post,list-subscribe,
+      list-unsubscribe,message-id,message-id-hash,mime-version,
+      precedence,subject,to;
+      snapf=a5440deb07cdcf63cd16bfaa29d9a87c0b97a300
+    Message-Instance: m=2; ...
+
+An outbound filter then verified the chain and signed:
+
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
+      repo=git.example.net/dkim2; date=2026-08-28;
+      sw=outbound-filter; action=sign d=list.example.org a=rsa-sha256
+    DKIM2-Signature: i=2; d=list.example.org; ...
+
+A Signer which declined because the Message-Instance chain would not
+undo:
+
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
+      repo=git.example.net/dkim2; date=2026-08-28;
+      sw=outbound-filter; action=not-signed=broken-mi-chain
+
+Two implementations on different drafts:
+
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
+      repo=git.example.net/dkim2; date=2026-08-28;
+      sw=inbound-filter; action=verify=fail (Message-Instance m=1
+      header hash mismatch (sha256))
+    ...
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-05;
+      repo=git.example.com/mta; date=2026-08-25;
+      sw=delivery-proxy; action=mi-m1; hc=8;
+      hn=content-type,date,feedback-id,from,message-id,mime-version,
+      subject,to
+
+# IANA considerations
+
+None.
+
+# Security considerations
+
+The field is not signed or hashed. Anyone handling the message can
+add, alter or remove one undetected. Software MUST NOT act on it.
+
+The field discloses the software, draft revision and source
+repository of each system, something of an emitter's storage layout,
+and the names of header fields present at hashing time. An operator
+MAY strip X-DKIM2-Info at its outbound boundary; verification is
+unaffected.
+
+[RFC5322] permits ";" in a header field name, so a name copied into
+"hn" verbatim could be read as further tags. An emitter SHOULD omit
+from "hn" any name containing a character outside %x21-3A / %x3C-7E,
+and SHOULD cap the length of "hn".
+
+--- back
+
+Changes from Earlier Versions
+=============================
+
+draft-gondwana-dkim2-debug-header-00
+
+Initial version.
