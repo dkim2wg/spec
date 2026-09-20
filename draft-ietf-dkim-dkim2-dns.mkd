@@ -1,7 +1,7 @@
 ---
 title: Domain Name Specification for DKIM2
 abbrev: DKIM2 DNS
-docname: draft-ietf-dkim-dkim2-dns-00
+docname: draft-ietf-dkim-dkim2-dns-01
 submissionType: IETF
 category: std
 ipr: trust200902
@@ -16,13 +16,20 @@ author:
     name: Wei Chuang
     org: Google
     email: weihaw@google.com
+ -
+    ins: A. Robinson
+    name: Allen Robinson
+    org: Google Inc.
+    email: arobins@google.com
 
 normative:
     RFC1034:
     RFC2045:
     RFC2119:
     RFC3629:
+    RFC4055:
     RFC5234:
+    RFC5280:
     RFC5322:
     RFC5598:
     RFC6376:
@@ -395,12 +402,12 @@ k=
 : Key type (plain-text; OPTIONAL, default is "rsa"). Signers and
   Verifiers MUST support the "rsa" key type. The "rsa" key type
   indicates that an ASN.1 DER-encoded [ITU-X660-1997] RSAPublicKey
-  (see [RFC8017], Sections 3.1 and A.1.1) is being used in the "p="
-  tag. (Note: the "p=" tag further encodes the value using the
-  base64 algorithm.) In addition Signers and Verifiers SHOULD
+  (see [RFC8017], Sections 3.1 and A.1.1) or
+  SubjectPublicKeyInfo-RSAPublicKey (see [RFC5280] and [RFC4055]) is
+  being used in the "p=" tag. (Note: the "p=" tag further encodes the 
+  value using the base64 algorithm.) In addition Signers and Verifiers SHOULD
   support the "ed25519" key type (See [RFC8463]).  The p= value
   in the key record is the Ed25519 public key encoded in base64. 
-  Unrecognized key types MUST be ignored.
 
 ~~~
 ABNF:
@@ -515,7 +522,53 @@ Consideration in [RFC6376] in Section 8.
 
 --- back
 
-# Acknowledgments
+# Appendix A: RSA Key Format Considerations {#rsa}
+
+The description of the key RSA format in [RFC6376] is ambiguous as it
+cites RSAPublicKey but implies usage of SubjectPublicKeyInfo-RSAPublicKey.
+Deployment since publication of [RFC6376] is for
+SubjectPublicKeyInfo-RSAPublicKey.  This document specifies supporting
+both RSAPublicKey and SubjectPublicKeyInfo-RSAPublicKey, and updates
+[RFC6376] to support both.  The following is a more detailed discussion
+of the errata and the basis for supporting both formats.
+
+During the development of DKIM2, Christian Rößner posted an errata in the
+the DKIM2 github repository [Clarify DKIM2 RSA p= encoding: SPKI reflector
+keys fail a strict verifier](https://github.com/dkim2wg/interop/issues/9).  
+The errata says that [RFC6376] and -00 of this document says to parse RSA as
+RSAPublicKey, however Appendix C of RFC6376 openssl instruction generates
+SubjectPublicKeyInfo.  
+
+RSAPublicKey is defined [RFC8017] as:
+~~~
+        RSAPublicKey ::= SEQUENCE {
+             modulus           INTEGER,  -- n
+             publicExponent    INTEGER   -- e
+        }
+~~~
+
+SubjectPublicKeyInfo is defined by [RFC5280] (PKIX) as:
+~~~
+        SubjectPublicKeyInfo  ::=  SEQUENCE  {
+             algorithm            AlgorithmIdentifier,
+             subjectPublicKey     BIT STRING
+        }
+~~~
+
+SubjectPublicKey with RSA key content is then defined to be RSAPublicKey in
+[RFC4055].  The errata notes that there are many other deployments of
+DKIM examples use SubjectPublicKeyInfo-RSAPublicKey instead of the specifed
+RSAPublicKey. 
+
+Bron Gondwana notes that there are three errata on [RFC6376]:
+[3017](https://errata.rfc-editor.org/eid3017/), 
+[6674](https://errata.rfc-editor.org/eid6674/) and 
+[7001](https://errata.rfc-editor.org/eid7001/).  Errata #9, 3017 and 7001 says to
+use SubjectPublicKeyInfo.  6674 and 7001 fixes the example in [RFC6376].  
+Bron and 3017 suggests that both formats should be supported for interoperability.
+
+# Acknowledgments {#acks}
+{:numbered="false"}
 
 The parent document to this is DKIM [RFC6376] from which the vast
 majority of content is copied from with only slight editing to update
@@ -524,4 +577,9 @@ Murray Kucherawy.  In addition, another source for this document is the
 Ed25519 extension to DKIM [RFC8463] with content transfered verbatum
 directly from.  The Ed25519 extension RFC was written by John Levine.
 Credit for the content and specification for DKIM and the Edd25519
-extension, from which DKIM2 is derived from, goes to them.
+extension, from which DKIM2 is derived from, goes to them.  Thanks goes
+to Christian Rößner for writing a detailed errata on RSA encoding in 
+[RFC6376], and to Bron Gondwana for working through the errata history
+including those on the DKIM WG errata database.
+
+
