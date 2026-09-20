@@ -366,7 +366,9 @@ an otherwise unstructured textual form.
 The overall syntax is a tag-list as described in {{tagvalue}}. The
 current valid tags are described below. Other tags MAY be present
 and MUST be ignored by any implementation that does not understand
-them. Several tags are retired from DKIM2, though remain documented for compatibility with DKIM1.  Conforming DKIM2 implementations SHOULD ignore retired tags.  
+them. Several tags are retired from DKIM2, though remain documented 
+for compatibility with DKIM1.  Conforming DKIM2 implementations SHOULD 
+ignore retired tags.  
 
 v=
 : Version of the DKIM key record (plain-text; RECOMMENDED,
@@ -404,10 +406,11 @@ k=
   indicates that an ASN.1 DER-encoded [ITU-X660-1997] RSAPublicKey
   (see [RFC8017], Sections 3.1 and A.1.1) or
   SubjectPublicKeyInfo-RSAPublicKey (see [RFC5280] and [RFC4055]) is
-  being used in the "p=" tag. (Note: the "p=" tag further encodes the 
-  value using the base64 algorithm.) In addition Signers and Verifiers SHOULD
-  support the "ed25519" key type (See [RFC8463]).  The p= value
-  in the key record is the Ed25519 public key encoded in base64. 
+  being used in the "p=" tag. (Note: {{rsa}} discusses the rsa public
+  key format in more details) The "p=" value encodes the 
+  rsa public key using the base64 algorithm. In addition Signers and Verifiers SHOULD
+  support the "ed25519" key type (See [RFC8463]).  The "p=" value
+  encodes the Ed25519 public key in base64. 
 
 ~~~
 ABNF:
@@ -458,23 +461,23 @@ x-key-s-tag-type = hyphenated-word ; for future extension
 ~~~
 
 t=
-: Flags, represented as a colon-separated list of names (plain-
-  text; OPTIONAL, default is no flags set). Unrecognized flags MUST
-  be ignored. The defined flags are as follows:
+: Flags, are retired from DKIM2 and SHOULD be ignored, but documented 
+  here for completeness.  They represented as a colon-separated list of names (plain-
+  text; OPTIONAL, default is no flags set).  Unrecognized flags MUST be
+  ignored. The defined flags are as follows:
    
   y
-  : This domain is testing DKIM2. Verifiers MUST NOT treat messages
+  : This domain is testing DKIM. Verifiers MUST NOT treat messages
     from Signers in testing mode differently from unsigned email,
     even should the signature fail to verify. Verifiers MAY wish
-    to track testing mode results to assist the Signer.
+    to track testing mode results to assist the Signer. 
 
   s
-  : Any DKIM2 signature header fields using the "i=" tag MUST have
+  : Any DKIM signature header fields using the "i=" tag MUST have
     the same domain value on the right-hand side of the "@" in the
     "i=" tag and the value of the "d=" tag. That is, the "i="
     domain MUST NOT be a subdomain of "d=". Use of this flag is
-
-   RECOMMENDED unless subdomaining is required.
+    RECOMMENDED unless subdomaining is required.
 
 ~~~
 ABNF:
@@ -522,7 +525,7 @@ Consideration in [RFC6376] in Section 8.
 
 --- back
 
-# Appendix A: RSA Key Format Considerations {#rsa}
+# RSA Key Format Considerations {#rsa}
 
 The description of the key RSA format in [RFC6376] is ambiguous as it
 cites RSAPublicKey but implies usage of SubjectPublicKeyInfo-RSAPublicKey.
@@ -540,7 +543,8 @@ RSAPublicKey, however Appendix C of RFC6376 openssl instruction generates
 SubjectPublicKeyInfo.  
 
 RSAPublicKey is defined [RFC8017] as:
-~~~
+
+~~~ ascii-art
         RSAPublicKey ::= SEQUENCE {
              modulus           INTEGER,  -- n
              publicExponent    INTEGER   -- e
@@ -548,7 +552,8 @@ RSAPublicKey is defined [RFC8017] as:
 ~~~
 
 SubjectPublicKeyInfo is defined by [RFC5280] (PKIX) as:
-~~~
+
+~~~ ascii-art
         SubjectPublicKeyInfo  ::=  SEQUENCE  {
              algorithm            AlgorithmIdentifier,
              subjectPublicKey     BIT STRING
