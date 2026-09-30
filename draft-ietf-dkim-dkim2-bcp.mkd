@@ -125,7 +125,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ## Originator
 
-[DKIM2] defines the Originator as the entity that creates and sends the initial form of a message; the Originator adds the first Message-Instance header field (m=1) and the first DKIM2-Signature header field (i=1) to the message. 
+[DKIM2] defines the Originator as the entity that creates and sends the initial form of a message; the Originator adds the first Message-Instance header field (m=1) and the first DKIM2-Signature header field (i=1) to the message.
 
 ## Forwarder
 
@@ -169,7 +169,7 @@ A fixed-length value produced by applying a cryptographic hash function (such as
 
 ## Signing and Verification Cryptographic Algorithms
 
-DKIM2 supports multiple hashing and digital signature algorithms. 
+DKIM2 supports multiple hashing and digital signature algorithms.
 
 ### Hashing Algorithms
 
@@ -177,7 +177,7 @@ As of publication of this document, {{DKIM2}} supports two hashing algorithms, S
 
 ### Signing Algorithms
 
-A Signing Algorithm computes a hash over all the Message-Instance and DKIM2-Signature header fields as described in Section 9.6 of {{DKIM2}}. That hash is then signed by the Signer using the RSA algorithm (defined in PKCS#1 version 1.5 {{RFC8017}}) as the crypt-alg and the Signer's private key. As of publication of this document, {{DKIM2}} supports two signing algorithms, RSA-SHA256 and Ed25519-SHA256. 
+A Signing Algorithm computes a hash over all the Message-Instance and DKIM2-Signature header fields as described in Section 9.6 of {{DKIM2}}. That hash is then signed by the Signer using the RSA algorithm (defined in PKCS#1 version 1.5 {{RFC8017}}) as the crypt-alg and the Signer's private key. As of publication of this document, {{DKIM2}} supports two signing algorithms, RSA-SHA256 and Ed25519-SHA256.
 
 ## Glossary
 
@@ -373,7 +373,7 @@ Forwarders that wish to relay feedback requests without exposing their own downs
 
 ## DKIM2 and the Authentication-Results Header Field {#auth-results}
 
-{{DKIM2}} designed its four verification output states (Section 11.1 of {{DKIM2}}) explicitly for compatibility with the Authentication-Results header field defined in {{RFC8601}}. At the time of this document's publication, {{DKIM2}}'s IANA Considerations section has not yet registered a corresponding authentication method name. That said, {{DKIM2AUTH}} exists, although it has not yet been adopted by the DKIM Working Group. 
+{{DKIM2}} designed its four verification output states (Section 11.1 of {{DKIM2}}) explicitly for compatibility with the Authentication-Results header field defined in {{RFC8601}}. At the time of this document's publication, {{DKIM2}}'s IANA Considerations section has not yet registered a corresponding authentication method name. That said, {{DKIM2AUTH}} exists, although it has not yet been adopted by the DKIM Working Group.
 
 If {{DKIM2AUTH}} is adopted by the DKIM Working Group, then its contents will speak on this topic, and this section can likely be deleted from this document. If it is not adopted, then this section can be revisited.
 
