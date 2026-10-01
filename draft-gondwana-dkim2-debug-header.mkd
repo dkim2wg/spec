@@ -1,7 +1,7 @@
 ---
 title: A Diagnostic Header Field for DKIM2 Implementations
 abbrev: DKIM2 Debug Header
-docname: draft-gondwana-dkim2-debug-header-00
+docname: draft-gondwana-dkim2-debug-header-01
 submissionType: IETF
 number:
 date:
@@ -74,7 +74,8 @@ Verifier, Originator, Message-Instance, Recipe and Chain of Custody
 are used as defined in [DKIM2].
 
 Syntax descriptions use Augmented BNF (ABNF) [RFC5234]. The tokens
-"FWS", "CRLF", "VCHAR" and "WSP" are imported from [RFC5322].
+"FWS" and "CRLF" are imported from [RFC5322], and "x-tag" is the
+extension tag rule of [DKIM2].
 
 An "emitter" is any piece of software which adds an X-DKIM2-Info
 header field to a message. An "action" is the single step in DKIM2
@@ -101,19 +102,16 @@ message on the basis of an X-DKIM2-Info header field.
 
 ## Syntax {#syntax}
 
-The value is a sequence of tag-value pairs separated by semicolons,
-in the style of the DKIM2-Signature header field.
+The value is a list of tag=value pairs, each followed by ";", using
+exactly the tag-list syntax of the Message-Instance and
+DKIM2-Signature header fields in [DKIM2]:
 
-    info-field  = "X-DKIM2-Info:" [FWS] tag-list [FWS] CRLF
-    tag-list    = tag-spec *( [FWS] ";" [FWS] tag-spec )
-    tag-spec    = tag-name "=" tag-value
-    tag-name    = ALPHA *( ALPHA / DIGIT / "-" )
-    tag-value   = *( tv-char / FWS )
-    tv-char     = %x21-3A / %x3C-7E
-                  ; VCHAR except ";"
+    info-field    = "X-DKIM2-Info:" info-tag-list CRLF
+    info-tag-list = *([FWS] x-tag [FWS] ";" [FWS])
 
-A tag-value may contain "=", ",", "(", ")" and space. It MUST NOT
-contain ";", which separates tags. There is no quoting mechanism; an
+Every tag, including the last, is followed by ";". A tag value may
+contain "=", ",", "(", ")" and space. It MUST NOT contain ";", which
+terminates a tag. There is no quoting mechanism; an
 emitter MUST replace or remove ";" in any value it substitutes.
 
 Five tags are always present, in the order "draft", "repo", "date",
@@ -204,7 +202,7 @@ parentheses:
 The authoritative result is in Authentication-Results ([AUTHRES]).
 No supplementary tags.
 
-## `mi-m<N>` {#mi}
+## `mi-m=<N>` {#mi}
 
 The emitter added a Message-Instance with "m=" N. Accompanied by
 "hc" and "hn"; where a snapshot store is used, also "snaps" and, for
@@ -236,8 +234,8 @@ taken. Where the action added a header field, the emitter MUST add
 that field first and the X-DKIM2-Info after it, so the X-DKIM2-Info
 sits immediately above the field it describes.
 
-The value is folded. Folding MUST happen only after the ";" between
-tags or after a "," inside a list; a consumer MUST ignore whitespace
+The value is folded. Folding MUST happen only after a ";" or
+after a "," inside a list; a consumer MUST ignore whitespace
 next to ";" and ",". An emitter MUST NOT fold inside a token.
 
 The field is excluded from the [DKIM2] header hash by the "x-" rule
@@ -252,9 +250,9 @@ The field is for a person reading a message which did not verify.
   "repo", "sw" and "date" across the fields.
 
 * Why does the header hash of "m=2" not match? Compare the "hn" of
-  the "mi-m2" field with the names the Verifier hashed.
+  the "mi-m=2" field with the names the Verifier hashed.
 
-* Why did the Recipe not undo? Take "snapf" from the failing "mi-m"
+* Why did the Recipe not undo? Take "snapf" from the failing "mi-m="
   field to the emitter's operator.
 
 * Why was this not signed? Look for "not-signed", else for a "verify"
@@ -270,34 +268,34 @@ Message-Instance, added "m=1":
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
       repo=git.example.net/dkim2; date=2026-08-28;
-      sw=inbound-filter; action=mi-m1; hc=8;
+      sw=inbound-filter; action=mi-m=1; hc=8;
       hn=content-type,date,from,message-id,mime-version,subject,
       to,to;
-      snaps=a5/a5440deb07cdcf63cd16bfaa29d9a87c0b97a300e1c2d3f4
+      snaps=a5/a5440deb07cdcf63cd16bfaa29d9a87c0b97a300e1c2d3f4;
     Message-Instance: m=1; ...
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
       repo=git.example.net/dkim2; date=2026-08-28;
       sw=inbound-filter; action=verify=none (no DKIM2-Signature
-      headers found)
+      headers found);
     Authentication-Results: mx.example.net; dkim2=none
 
 The same message after a mailing list recorded its changes as "m=2":
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
       repo=git.example.org/listmanager; date=2026-08-28;
-      sw=listmanager; action=mi-m2; hc=18;
+      sw=listmanager; action=mi-m=2; hc=18;
       hn=archived-at,content-type,date,feedback-id,from,list-archive,
       list-help,list-id,list-owner,list-post,list-subscribe,
       list-unsubscribe,message-id,message-id-hash,mime-version,
       precedence,subject,to;
-      snapf=a5440deb07cdcf63cd16bfaa29d9a87c0b97a300
+      snapf=a5440deb07cdcf63cd16bfaa29d9a87c0b97a300;
     Message-Instance: m=2; ...
 
 An outbound filter then verified the chain and signed:
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
       repo=git.example.net/dkim2; date=2026-08-28;
-      sw=outbound-filter; action=sign d=list.example.org a=rsa-sha256
+      sw=outbound-filter; action=sign d=list.example.org a=rsa-sha256;
     DKIM2-Signature: i=2; d=list.example.org; ...
 
 A Signer which declined because the Message-Instance chain would not
@@ -305,20 +303,20 @@ undo:
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
       repo=git.example.net/dkim2; date=2026-08-28;
-      sw=outbound-filter; action=not-signed=broken-mi-chain
+      sw=outbound-filter; action=not-signed=broken-mi-chain;
 
 Two implementations on different drafts:
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
       repo=git.example.net/dkim2; date=2026-08-28;
       sw=inbound-filter; action=verify=fail (Message-Instance m=1
-      header hash mismatch (sha256))
+      header hash mismatch (sha256));
     ...
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-05;
       repo=git.example.com/mta; date=2026-08-25;
-      sw=delivery-proxy; action=mi-m1; hc=8;
+      sw=delivery-proxy; action=mi-m=1; hc=8;
       hn=content-type,date,feedback-id,from,message-id,mime-version,
-      subject,to
+      subject,to;
 
 # IANA considerations
 
@@ -344,6 +342,12 @@ and SHOULD cap the length of "hn".
 
 Changes from Earlier Versions
 =============================
+
+draft-gondwana-dkim2-debug-header-01
+
+Use the [DKIM2] tag-list syntax, with every tag followed by ";",
+rather than defining a third tag-list variant. Renamed the `mi-m<N>`
+action to `mi-m=<N>` so every action with a value uses "=".
 
 draft-gondwana-dkim2-debug-header-00
 
