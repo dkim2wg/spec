@@ -608,7 +608,7 @@ modification to the header fields.
 Header field names in the JSON keys MUST be in lower case, but
 they will be matched with the message without regard to case.
 Recipes SHOULD NOT be specified for header fields that will not
-be signed (see {{ignoreheaders}}
+be signed (see {{ignoreheaders}})
 
 If a header field name is not present in the JSON object then all
 header fields with that header field name are to be retained.
