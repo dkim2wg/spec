@@ -206,7 +206,7 @@ example:
 * Domains that want to delegate signing capability for a specific address for a given duration to a partner, such as an advertising provider or other outsourced function.
 * Domains that want to allow frequent travelers to send messages locally without the need to connect with a particular MSA.
 * "Affinity" domains (e.g., college alumni associations) that provide forwarding of incoming mail, but that do not operate a mail submission agent for outgoing mail.
-       
+
 Periods are allowed in selectors and are component separators. When
 keys are retrieved from the DNS, periods in selectors define DNS label
 boundaries in a manner similar to the conventional use in domain
@@ -366,9 +366,9 @@ an otherwise unstructured textual form.
 The overall syntax is a tag-list as described in {{tagvalue}}. The
 current valid tags are described below. Other tags MAY be present
 and MUST be ignored by any implementation that does not understand
-them. Several tags are retired from DKIM2, though remain documented 
-for compatibility with DKIM1.  Conforming DKIM2 implementations SHOULD 
-ignore retired tags.  
+them. Several tags are retired from DKIM2, though remain documented
+for compatibility with DKIM1.  Conforming DKIM2 implementations SHOULD
+ignore retired tags.
 
 v=
 : Version of the DKIM key record (plain-text; RECOMMENDED,
@@ -378,7 +378,7 @@ v=
   value MUST be discarded. Note that Verifiers must do a string
   comparison on this value; for example, "DKIM1" is not the same
   as "DKIM1.0".
-       
+
 INFORMATIVE NOTE: DKIM2 reuses a subset of the DKIM textual
 representation including this version number for compatibility
 with existing key deployment.  Consequently DKIM2 does not
@@ -391,7 +391,7 @@ key-v-tag = %x76 [FWS] "=" [FWS] %x44.4B.49.4D.31
 
 h=
 : Acceptable hash algorithms (plain-text).  This is retired from DKIM2 and SHOULD be ignored.
-       
+
 ~~~
 ABNF:
 key-h-tag = %x68 [FWS] "=" [FWS] key-h-tag-alg
@@ -399,7 +399,7 @@ key-h-tag = %x68 [FWS] "=" [FWS] key-h-tag-alg
 key-h-tag-alg = "sha1" / "sha256" / x-key-h-tag-alg
 x-key-h-tag-alg = hyphenated-word ; for future extension
 ~~~
- 
+
 k=
 : Key type (plain-text; OPTIONAL, default is "rsa"). Signers and
   Verifiers MUST support the "rsa" key type. The "rsa" key type
@@ -407,10 +407,10 @@ k=
   (see [RFC8017], Sections 3.1 and A.1.1) or
   SubjectPublicKeyInfo-RSAPublicKey (see [RFC5280] and [RFC4055]) is
   being used in the "p=" tag. (Note: {{rsa}} discusses the rsa public
-  key format in more details) The "p=" value encodes the 
+  key format in more details) The "p=" value encodes the
   rsa public key using the base64 algorithm. In addition Signers and Verifiers SHOULD
   support the "ed25519" key type (See [RFC8463]).  The "p=" value
-  encodes the Ed25519 public key in base64. 
+  encodes the Ed25519 public key in base64.
 
 ~~~
 ABNF:
@@ -432,7 +432,7 @@ p=
   this public key has been revoked. The syntax and semantics of
   this tag value before being encoded in base64 are defined by the
   "k=" tag.
- 
+
 INFORMATIVE RATIONALE: If a private key has been compromised or
 otherwise disabled (e.g., an outsourcing contract has been
 terminated), a Signer might want to explicitly state that it
@@ -461,16 +461,16 @@ x-key-s-tag-type = hyphenated-word ; for future extension
 ~~~
 
 t=
-: Flags, are retired from DKIM2 and SHOULD be ignored, but documented 
+: Flags, are retired from DKIM2 and SHOULD be ignored, but documented
   here for completeness.  They represented as a colon-separated list of names (plain-
   text; OPTIONAL, default is no flags set).  Unrecognized flags MUST be
   ignored. The defined flags are as follows:
-   
+
   y
   : This domain is testing DKIM. Verifiers MUST NOT treat messages
     from Signers in testing mode differently from unsigned email,
     even should the signature fail to verify. Verifiers MAY wish
-    to track testing mode results to assist the Signer. 
+    to track testing mode results to assist the Signer.
 
   s
   : Any DKIM signature header fields using the "i=" tag MUST have
@@ -537,10 +537,10 @@ of the errata and the basis for supporting both formats.
 
 During the development of DKIM2, Christian Rößner posted an errata in the
 the DKIM2 github repository [Clarify DKIM2 RSA p= encoding: SPKI reflector
-keys fail a strict verifier](https://github.com/dkim2wg/interop/issues/9).  
+keys fail a strict verifier](https://github.com/dkim2wg/interop/issues/9).
 The errata says that [RFC6376] and -00 of this document says to parse RSA as
 RSAPublicKey, however Appendix C of RFC6376 openssl instruction generates
-SubjectPublicKeyInfo.  
+SubjectPublicKeyInfo.
 
 RSAPublicKey is defined [RFC8017] as:
 
@@ -563,13 +563,13 @@ SubjectPublicKeyInfo is defined by [RFC5280] (PKIX) as:
 SubjectPublicKey with RSA key content is then defined to be RSAPublicKey in
 [RFC4055].  The errata notes that there are many other deployments of
 DKIM examples use SubjectPublicKeyInfo-RSAPublicKey instead of the specifed
-RSAPublicKey. 
+RSAPublicKey.
 
 Bron Gondwana notes that there are three errata on [RFC6376]:
-[3017](https://errata.rfc-editor.org/eid3017/), 
-[6674](https://errata.rfc-editor.org/eid6674/) and 
+[3017](https://errata.rfc-editor.org/eid3017/),
+[6674](https://errata.rfc-editor.org/eid6674/) and
 [7001](https://errata.rfc-editor.org/eid7001/).  Errata #9, 3017 and 7001 says to
-use SubjectPublicKeyInfo.  6674 and 7001 fixes the example in [RFC6376].  
+use SubjectPublicKeyInfo.  6674 and 7001 fixes the example in [RFC6376].
 Bron and 3017 suggests that both formats should be supported for interoperability.
 
 # Acknowledgments {#acks}
@@ -583,7 +583,7 @@ Ed25519 extension to DKIM [RFC8463] with content transfered verbatum
 directly from.  The Ed25519 extension RFC was written by John Levine.
 Credit for the content and specification for DKIM and the Edd25519
 extension, from which DKIM2 is derived from, goes to them.  Thanks goes
-to Christian Rößner for writing a detailed errata on RSA encoding in 
+to Christian Rößner for writing a detailed errata on RSA encoding in
 [RFC6376], and to Bron Gondwana for working through the errata history
 including those on the DKIM WG errata database.
 
