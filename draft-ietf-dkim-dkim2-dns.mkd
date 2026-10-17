@@ -1,7 +1,7 @@
 ---
 title: Domain Name Specification for DKIM2
 abbrev: DKIM2 DNS
-docname: draft-ietf-dkim-dkim2-dns-01
+docname: draft-ietf-dkim-dkim2-dns-02
 submissionType: IETF
 category: std
 ipr: trust200902
@@ -55,7 +55,8 @@ and how to find the record.
 # Introduction
 
 
-The updated DomainKeys Identified Mail (DKIM2) permits an organization
+The updated DomainKeys Identified Mail (DKIM2) 
+{{I-D.draft-ietf-dkim-dkim2-spec}} permits an organization
 that owns the signing domain to claim some responsibility for a
 message [RFC5322] by associating the domain with the message through a
 digital signature.  This is done by publishing to Domain Name Service
@@ -75,7 +76,7 @@ registrations. This document and the other DKIM2 documents do not
 deprecate RFC6376 as it is expected that both DKIM and DKIM2 will
 co-exist for at least some period of time.
 
-INFORMATIVE NOTE: another reason for separating the DKIM2 DNS
+INFORMATIVE NOTE FOR DKIM2: another reason for separating the DKIM2 DNS
 specification from DKIM, is that in the future, it is likely that
 DKIM2 will diverge from the parent specification.
 
@@ -314,23 +315,43 @@ empty value explicitly designates the empty string as the value.
 
 ## Signing and Verification Algorithms {#algorithm}
 
-DKIM2 supports multiple digital signature algorithms.  Two algorithms
-are referenced by this specification at this time: rsa-sha256 and
-ed25519-sha256. rsa-sha256 is specified in [RFC6376] while
-ed25519-sha256 is specified in [RFC8463].  Signers and Verifiers MUST
-implement rsa-sha256 and SHOULD implement ed25519-sha256.  Futher they
-MUST NOT validate the legacy DKIM [RFC6376] rsa-sha1 algorithm
-i.e. ignore the public key and signatures associated with it.
+DKIM2 supports multiple digital signature algorithms.  Three algorithms
+are referenced by this specification at this time: rsa-sha256,
+ed25519-sha256 and mldsa44-ed25519-sha512. rsa-sha256 is specified in
+[RFC6376] while ed25519-sha256 is specified in [RFC8463].  
+mldsa44-ed25519-sha512 is specified in {{I-D.draft-ietf-lamps-pq-composite-sigs}}.  
+Signers and Verifiers MUST implement rsa-sha256 and SHOULD 
+implement ed25519-sha256 and mldsa44-ed25519-sha512.  Further 
+they MUST NOT validate the legacy DKIM [RFC6376] rsa-sha1 algorithm
+i.e. ignore the public key and signatures associated with it.  The 
+following describes the mapping of key type "k=" values found in
+{{textualrepresentation}} to the digital signature algorithms given
+here:
 
-INFORMATIVE NOTE: rsa-sha256 enjoys virtually universal deployment
+|------------------------|--------------------------------|
+| key type value         | digital signature algorithms   |
+|:----------------------:|:------------------------------:|
+| rsa                    | rsa-sha256                     |
+| ed25519                | ed25519-sha256                 |
+| mldsa44-ed25519-sha512 | mldsa44-ed25519-sha512         |
+|------------------------|--------------------------------|
+
+INFORMATIVE RATIONALE FOR DKIM2: rsa-sha256 enjoys virtually universal deployment
 while ed25519-sha256 has very little deployment at the creation of
 this draft.  It does provide better capability in reduced key size,
-and faster signing and verification speed.  Support for at least two
+and faster signing and verification speed.  ML-DSA in 
+mldsa44-ed25519-sha512 is a Post-Quantum Cryptography algorithm
+that provides protection against Cryptographically Relevant Quantum
+Computer that otherwise makes RSA and EC DSA algorithms vulnerable.
+mldsa44-ed25519-sha512 is a composite construction to provide
+backstop protection for ML-DSA in case it has a latent undiscovered
+vulnerability.  Support for at least three
 algorithms provides algorithmic diversity that provides defense
 against some unforeseen future algorithm breakage.  Thus
-implementation of ed25519-sha256 will be changed to MUST upon the
-completion of the DKIM2 specification.  rsa-sha1 algorithm is
-deprecated for DKIM2 as sha1 is demonstrateably broken.
+implementation of ed25519-sha256 and mldsa44-ed25519-sha512
+will be changed to MUST upon the completion of the DKIM2 
+specification.  rsa-sha1 algorithm is deprecated for DKIM2 as 
+sha1 is demonstrateably broken.
 
 ## Key Management and Representation
 
@@ -379,7 +400,7 @@ v=
   comparison on this value; for example, "DKIM1" is not the same
   as "DKIM1.0".
        
-INFORMATIVE NOTE: DKIM2 reuses a subset of the DKIM textual
+NOTE FOR DKIM2: DKIM2 reuses a subset of the DKIM textual
 representation including this version number for compatibility
 with existing key deployment.  Consequently DKIM2 does not
 increment the version number.
@@ -409,8 +430,11 @@ k=
   being used in the "p=" tag. (Note: {{rsa}} discusses the rsa public
   key format in more details) The "p=" value encodes the 
   rsa public key using the base64 algorithm. In addition Signers and Verifiers SHOULD
-  support the "ed25519" key type (See [RFC8463]).  The "p=" value
-  encodes the Ed25519 public key in base64. 
+  support the "ed25519" key type (See [RFC8463]) and
+  "mldsa44-ed25519-sha512" key type (See 
+  {{I-D.draft-ietf-lamps-pq-composite-sigs}}.  The "p=" value
+  encodes the Ed25519 public key or the mldsa44-ed25519-sha512 public
+  key composite in base64. 
 
 ~~~
 ABNF:
@@ -420,7 +444,8 @@ x-key-k-tag-type = hyphenated-word ; for future extension
 ~~~
 
 n=
-: Notes to human operators.  This is retired from DKIM2 and SHOULD be ignored.
+: Notes that might be of interest to a human.  This is retired from 
+  DKIM2 and SHOULD be ignored.
 
 ~~~
 ABNF:
