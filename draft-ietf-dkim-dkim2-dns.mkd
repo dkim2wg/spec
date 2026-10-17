@@ -26,16 +26,27 @@ normative:
     RFC1034:
     RFC2045:
     RFC2119:
-    RFC3629:
     RFC4055:
     RFC5234:
     RFC5280:
+    RFC5321:
     RFC5322:
-    RFC5598:
     RFC6376:
     RFC8017:
     RFC8463:
+    ITU-X660-1997:
+      title: "Information technology - Open Systems Interconnection - Procedures for the operation of OSI Registration Authorities: General procedures"
+      author:
+        org: ITU-T
+      date: 1997-08
+      seriesinfo:
+        ITU-T: Recommendation X.660
 informative:
+    RFC3629:
+    RFC5598:
+    I-D.draft-ietf-dkim-dkim2-bcp:
+    I-D.draft-ietf-dkim-dkim2-spec:
+    I-D.draft-ietf-lamps-pq-composite-sigs:
 
 --- abstract
 
@@ -46,7 +57,7 @@ signature. This is done by publishing to Domain Name Service (DNS) of
 the domain a public key that is then associated to the domain and
 where messages can be signed by the corresponding private key.
 Assertion of responsibility is validated through a cryptographic
-signature and by querying the Signer’s domain directly to retrieve the
+signature and by querying the Signer's domain directly to retrieve the
 appropriate public key.  This document describes DKIM2 DNS record format
 and how to find the record.
 
@@ -56,24 +67,23 @@ and how to find the record.
 
 
 The updated DomainKeys Identified Mail (DKIM2) 
-{{I-D.draft-ietf-dkim-dkim2-spec}} permits an organization
+{{?I-D.draft-ietf-dkim-dkim2-spec}} permits an organization
 that owns the signing domain to claim some responsibility for a
-message [RFC5322] by associating the domain with the message through a
+message {{RFC5322}} by associating the domain with the message through a
 digital signature.  This is done by publishing to Domain Name Service
 (DNS) of the domain a public key that is then associated to the domain
-[RFC1034] and where messages can be signed by the corresponding
+{{RFC1034}} and where messages can be signed by the corresponding
 private key.  Assertion of responsibility is validated through a
-cryptographic signature and by querying the Signer’s domain directly
+cryptographic signature and by querying the Signer's domain directly
 to retrieve the appropriate public key.
 
 This document describes DKIM2 DNS record format and how to find the
 record.  The updated DomainKeys Identified Mail (DKIM2) adopts a
-subset of the DKIM [RFC6376] DNS specification, but to prevent
-ambiguity from using the using normative references to RFC6376, this
-document copies over the RFC6376 and updates as necessary.  However,
-this document still does normatively reference RFC6376 for the IANA
+subset of the DKIM {{RFC6376}} DNS specification, but to prevent
+ambiguity from using normative references to {{RFC6376}}, this
+document copies over the relevant text from {{RFC6376}} and updates it as necessary.  However, this document still normatively references {{RFC6376}} for the IANA
 registrations. This document and the other DKIM2 documents do not
-deprecate RFC6376 as it is expected that both DKIM and DKIM2 will
+deprecate {{RFC6376}} as it is expected that both DKIM and DKIM2 will
 co-exist for at least some period of time.
 
 INFORMATIVE NOTE FOR DKIM2: another reason for separating the DKIM2 DNS
@@ -81,21 +91,21 @@ specification from DKIM, is that in the future, it is likely that
 DKIM2 will diverge from the parent specification.
 
 There are other updated DomainKeys Identified Mail (DKIM2) documents
-as well: the first document describes the motivation; the second
-document describes the headers.
+as well: {{?I-D.draft-ietf-dkim-dkim2-spec}} describes the protocol and header fields,
+{{?I-D.draft-ietf-dkim-dkim2-bcp}} describes the Best Current Practice (BCP) for DKIM2.
 
 # Terminology and Definitions
 
 This section defines terms used in the rest of the document.
 DKIM2 is designed to operate within the Internet Mail service, as
-defined in [RFC5598]. Basic email terminology is taken from that
+defined in {{RFC5598}}. Basic email terminology is taken from that
 specification.
 
-Syntax descriptions use Augmented BNF (ABNF) [RFC5234].
+Syntax descriptions use Augmented BNF (ABNF) {{RFC5234}}.
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
 "OPTIONAL" in this document are to be interpreted as described in
-[RFC2119]. These words take their normative meanings only when they
+{{RFC2119}}. These words take their normative meanings only when they
 are presented in ALL UPPERCASE.
 
 ## Signers
@@ -118,11 +128,10 @@ mailing list exploder.
 
 ## Identity
 
-This specification DKIM2 calls for the Identity to correspond to an
-organization while DKIM permitted person, or role as well. In the
-context of email architecture specification [RFC5598], this
+In DKIM2, the Identity corresponds to an organization, whereas DKIM {{RFC6376}} permitted a 
+person or role as well. In the context of the email architecture specification {{RFC5598}}, this 
 corresponds to an ADministrative Management Domain (ADMD).  Some
-examples include the the author’s organization, an ISP along the
+examples include the author's organization, an ISP along the
 handling path, an independent trust assessment service, and a mailing
 list operator.
 
@@ -132,12 +141,12 @@ A label that refers to an identity.
 
 ## Signing Domain Identifier (SDID)
 
-A single domain name that is the mandatory payload output of DKIM and
-that refers to the identity claiming some responsibility
+A single domain name that is the mandatory payload output of DKIM2 and
+that refers to the identity claiming some responsibility.
 
 ## Identity Assessor
 
-An element in the mail system that consumes DKIM2’s payload, which is
+An element in the mail system that consumes DKIM2's payload, which is
 the responsible Signing Domain Identifier (SDID). The Identity
 Assessor is dedicated to the assessment of the delivered identifier.
 Other DKIM2 (and non-DKIM2) values can also be used by the Identity
@@ -150,46 +159,48 @@ outside the scope of this specification.
 
 There are three forms of whitespace:
 
-* WSP represents simple whitespace, i.e., a space or a tab character (formal definition in [RFC5234])
-* LWSP is linear whitespace, defined as WSP plus CRLF (formal definition in [RFC5234]).
-* FWS is folding whitespace. It allows multiple lines separated by CRLF followed by at least one whitespace, to be joined.
+* WSP represents simple whitespace, i.e., a space or a tab character (formal definition in {{RFC5234}}).
+* LWSP is linear whitespace, defined as WSP plus CRLF (formal definition in {{RFC5234}}).
+* FWS is folding whitespace. It allows multiple lines separated by CRLF followed by at least one whitespace, to be joined.  The definition of FWS is identical to that in {{RFC5322}} except for the exclusion of obs-FWS.
 
-The formal ABNF for these are (WSP and LWSP are given for information  only):
+The formal ABNF for these is (WSP and LWSP are given for information only):
 
-~~~
+~~~ abnf
 WSP = SP / HTAB
 LWSP = *(WSP / CRLF WSP)
 FWS = [*WSP CRLF] 1*WSP
 ~~~
 
-The definition of FWS is identical to that in [RFC5322] except for the exclusion of obs-FWS.
-
 ## Imported ABNF Tokens
 
-The following tokens are imported from other RFCs as noted. Those RFCs should be connsidered definitive.
+The following tokens are imported from other RFCs as noted. Those RFCs should be considered definitive.
 
-The following tokens are imported from [RFC2045]:
+The following tokens are imported from {{RFC2045}}:
 
 * "qp-section" (a single line of quoted-printable-encoded text)
 
-Tokens not defined herein are imported from [RFC5234]. These are intuitive primitives such as SP, HTAB, WSP, ALPHA, DIGIT, CRLF, etc.
+The following tokens are imported from {{RFC5321}}:
+
+* "sub-domain" (a single domain label)
+
+Tokens not defined herein are imported from {{RFC5234}}. These are intuitive primitives such as SP, HTAB, WSP, ALPHA, DIGIT, CRLF, etc.
 
 ## Common ABNF Tokens
 
 The following ABNF tokens are used elsewhere in this document:
 
-~~~
+~~~ abnf
 hyphenated-word = ALPHA [ *(ALPHA / DIGIT / "-") (ALPHA / DIGIT) ]
 ALPHADIGITPS = (ALPHA / DIGIT / "+" / "/")
 base64string = ALPHADIGITPS *([FWS] ALPHADIGITPS)
-[ [FWS] "=" [ [FWS] "=" ] ]
+               [ [FWS] "=" [ [FWS] "=" ] ]
 ~~~
 
 # Protocol Elements
 
 Protocol Elements are conceptual parts of the protocol that are not
 specific to either Signers or Verifiers. The protocol descriptions
-for Signers and Verifiers will be described in a separate document. NOTE: This
+for Signers and Verifiers are described in {{?I-D.draft-ietf-dkim-dkim2-spec}}. NOTE: This
 section must be read in the context of those elements.
 
 ## Selectors
@@ -214,10 +225,11 @@ boundaries in a manner similar to the conventional use in domain
 names. Selector components might be used to combine dates with
 locations, for example, "march2005.reykjavik". In a DNS
 implementation, this can be used to allow delegation of a portion of
-he selector namespace.
+the selector namespace.
 
-~~~
 ABNF:
+
+~~~ abnf
 selector = sub-domain *( "." sub-domain )
 ~~~
 
@@ -253,9 +265,9 @@ others will want to take care not to allocate selector names in a way
 that allows harvesting of data by outside parties.
 
 INFORMATIVE OPERATIONS NOTE: Reusing a selector with a new key
-(for example, changing the key associated with a user’s name)
+(for example, changing the key associated with a user's name)
 makes it impossible to tell the difference between a message that
-didn’t verify because the key is no longer valid and a message
+didn't verify because the key is no longer valid and a message
 that is actually forged. For this reason, Signers are ill-advised
 to reuse selectors for new keys. A better strategy is to assign
 new keys to new selectors.
@@ -265,7 +277,7 @@ new keys to new selectors.
 DKIM2 uses a simple "tag=value" syntax in several contexts, including
 in messages and domain signature records.
 Values are a series of strings containing either plain text, "base64"
-text (as defined in [RFC2045], Section 6.8), or "qp-section" (ibid,
+text (as defined in {{RFC2045}}, Section 6.8), or "qp-section" (ibid,
 Section 6.7). The name of the tag will determine the encoding of
 each value. Unencoded semicolon (";") characters MUST NOT occur in
 the tag value, since that separates tag-specs.
@@ -273,12 +285,12 @@ the tag value, since that separates tag-specs.
 INFORMATIVE IMPLEMENTATION NOTE: Although the "plain text" defined
 below (as "tag-value") only includes 7-bit characters, an
 implementation that wished to anticipate future standards would be
-advised not to preclude the use of UTF-8-encoded [RFC3629] text
+advised not to preclude the use of UTF-8-encoded {{RFC3629}} text
 in tag=value lists.
 
 Formally, the ABNF syntax rules are as follows:
 
-~~~
+~~~ abnf
 tag-list = tag-spec *( ";" tag-spec ) [ ";" ]
 tag-spec = [FWS] tag-name [FWS] "=" [FWS] tag-value [FWS]
 tag-name = ALPHA *ALNUMPUNC
@@ -292,9 +304,9 @@ ALNUMPUNC = ALPHA / DIGIT / "_"
 
 Note that WSP is allowed anywhere around tags. In particular, any
 WSP after the "=" and any WSP before the terminating ";" is not part
-of the value; however, WSP inside the value is signicant.
+of the value; however, WSP inside the value is significant.
 
-MUST be interpreted in a case-sensitive manner. Values MUST be
+Tags MUST be interpreted in a case-sensitive manner. Values MUST be
 processed as case sensitive unless the specific tag description of
 semantics specifies case insensitivity.
 
@@ -318,31 +330,30 @@ empty value explicitly designates the empty string as the value.
 DKIM2 supports multiple digital signature algorithms.  Three algorithms
 are referenced by this specification at this time: rsa-sha256,
 ed25519-sha256 and mldsa44-ed25519-sha512. rsa-sha256 is specified in
-[RFC6376] while ed25519-sha256 is specified in [RFC8463].  
-mldsa44-ed25519-sha512 is specified in {{I-D.draft-ietf-lamps-pq-composite-sigs}}.  
+{{RFC6376}} while ed25519-sha256 is specified in {{RFC8463}}.  
+mldsa44-ed25519-sha512 is specified in {{?I-D.draft-ietf-lamps-pq-composite-sigs}}.  
 Signers and Verifiers MUST implement rsa-sha256 and SHOULD 
 implement ed25519-sha256 and mldsa44-ed25519-sha512.  Further 
-they MUST NOT validate the legacy DKIM [RFC6376] rsa-sha1 algorithm
+they MUST NOT validate the legacy DKIM {{RFC6376}} rsa-sha1 algorithm
 i.e. ignore the public key and signatures associated with it.  The 
 following describes the mapping of key type "k=" values found in
-{{textualrepresentation}} to the digital signature algorithms given
-here:
+{{textualrepresentation}} to the digital signature algorithms given in 
+{{mappingkeytype}}:
 
-|------------------------|--------------------------------|
 | key type value         | digital signature algorithms   |
 |:----------------------:|:------------------------------:|
 | rsa                    | rsa-sha256                     |
 | ed25519                | ed25519-sha256                 |
 | mldsa44-ed25519-sha512 | mldsa44-ed25519-sha512         |
-|------------------------|--------------------------------|
+{: title="Mapping of key type to digital signature algorithm" #mappingkeytype}
 
 INFORMATIVE RATIONALE FOR DKIM2: rsa-sha256 enjoys virtually universal deployment
 while ed25519-sha256 has very little deployment at the creation of
 this draft.  It does provide better capability in reduced key size,
 and faster signing and verification speed.  ML-DSA in 
-mldsa44-ed25519-sha512 is a Post-Quantum Cryptography algorithm
-that provides protection against Cryptographically Relevant Quantum
-Computer that otherwise makes RSA and EC DSA algorithms vulnerable.
+mldsa44-ed25519-sha512 is a Post-Quantum Cryptography (PQC) algorithm
+that provides protection against a Cryptographically Relevant Quantum
+Computer (CRQC) that would otherwise make RSA and ECDSA algorithms vulnerable.
 mldsa44-ed25519-sha512 is a composite construction to provide
 backstop protection for ML-DSA in case it has a latent undiscovered
 vulnerability.  Support for at least three
@@ -350,8 +361,8 @@ algorithms provides algorithmic diversity that provides defense
 against some unforeseen future algorithm breakage.  Thus
 implementation of ed25519-sha256 and mldsa44-ed25519-sha512
 will be changed to MUST upon the completion of the DKIM2 
-specification.  rsa-sha1 algorithm is deprecated for DKIM2 as 
-sha1 is demonstrateably broken.
+specification.  The rsa-sha1 algorithm is deprecated for DKIM2 as 
+SHA-1 is demonstrably broken.
 
 ## Key Management and Representation
 
@@ -360,16 +371,16 @@ verification public key is associated with the claimed Signer. Many
 applications achieve this by using public-key certificates issued by
 a trusted third party. However, DKIM2 can achieve a sufficient level
 of security, with significantly enhanced scalability, by simply
-having the Verifier query the purported Signer’s DNS entry (or some
+having the Verifier query the purported Signer's DNS entry (or some
 security-equivalent) in order to retrieve the public key.
 DKIM2 keys can potentially be stored in multiple types of key servers
 and in multiple formats. The storage and format of keys are
 irrelevant to the remainder of the DKIM2 algorithm.
 Parameters to the key lookup algorithm are the type of the lookup
-(the "q=" tag), the domain of the Signer (the "d=" tag of the DKIM2
-signature header field), and the selector (the "s=" tag).
+(defaulting to DNS TXT in DKIM2), the domain of the Signer (the "d=" tag of the DKIM2-Signature header field), and the selector (from the "s=" tag of 
+the DKIM2-Signature header field).
 
-~~~
+~~~ ascii-art
 public_key = dkim2_find_key(q_val, d_val, s_val)
 ~~~
 
@@ -405,18 +416,20 @@ representation including this version number for compatibility
 with existing key deployment.  Consequently DKIM2 does not
 increment the version number.
 
-~~~
 ABNF:
+
+~~~ abnf
 key-v-tag = %x76 [FWS] "=" [FWS] %x44.4B.49.4D.31
 ~~~
 
 h=
 : Acceptable hash algorithms (plain-text).  This is retired from DKIM2 and SHOULD be ignored.
        
-~~~
 ABNF:
+
+~~~ abnf
 key-h-tag = %x68 [FWS] "=" [FWS] key-h-tag-alg
-*( [FWS] ":" [FWS] key-h-tag-alg )
+            *( [FWS] ":" [FWS] key-h-tag-alg )
 key-h-tag-alg = "sha1" / "sha256" / x-key-h-tag-alg
 x-key-h-tag-alg = hyphenated-word ; for future extension
 ~~~
@@ -424,22 +437,23 @@ x-key-h-tag-alg = hyphenated-word ; for future extension
 k=
 : Key type (plain-text; OPTIONAL, default is "rsa"). Signers and
   Verifiers MUST support the "rsa" key type. The "rsa" key type
-  indicates that an ASN.1 DER-encoded [ITU-X660-1997] RSAPublicKey
-  (see [RFC8017], Sections 3.1 and A.1.1) or
-  SubjectPublicKeyInfo-RSAPublicKey (see [RFC5280] and [RFC4055]) is
-  being used in the "p=" tag. (Note: {{rsa}} discusses the rsa public
-  key format in more details) The "p=" value encodes the 
+  indicates that an ASN.1 DER-encoded {{ITU-X660-1997}} RSAPublicKey
+  (see {{RFC8017}}, Sections 3.1 and A.1.1) or
+  SubjectPublicKeyInfo-RSAPublicKey (see {{RFC5280}} and {{RFC4055}}) is
+  being used in the "p=" tag. (Note: {{rsa}} discusses the RSA public
+  key format in more detail.) The "p=" value encodes the 
   rsa public key using the base64 algorithm. In addition Signers and Verifiers SHOULD
-  support the "ed25519" key type (See [RFC8463]) and
+  support the "ed25519" key type (See {{RFC8463}}) and
   "mldsa44-ed25519-sha512" key type (See 
-  {{I-D.draft-ietf-lamps-pq-composite-sigs}}.  The "p=" value
+  {{?I-D.draft-ietf-lamps-pq-composite-sigs}}).  The "p=" value
   encodes the Ed25519 public key or the mldsa44-ed25519-sha512 public
   key composite in base64. 
 
-~~~
 ABNF:
-key-k-tag = %x76 [FWS] "=" [FWS] key-k-tag-type
-key-k-tag-type = "rsa" / "ed25519" / x-key-k-tag-type
+
+~~~ abnf
+key-k-tag = %x6b [FWS] "=" [FWS] key-k-tag-type
+key-k-tag-type = "rsa" / "ed25519" / "mldsa44-ed25519-sha512" / x-key-k-tag-type
 x-key-k-tag-type = hyphenated-word ; for future extension
 ~~~
 
@@ -447,8 +461,9 @@ n=
 : Notes that might be of interest to a human.  This is retired from 
   DKIM2 and SHOULD be ignored.
 
-~~~
 ABNF:
+
+~~~ abnf
 key-n-tag = %x6e [FWS] "=" [FWS] qp-section
 ~~~
 
@@ -461,10 +476,11 @@ p=
 INFORMATIVE RATIONALE: If a private key has been compromised or
 otherwise disabled (e.g., an outsourcing contract has been
 terminated), a Signer might want to explicitly state that it
-knows about the selector, but all messages using that selector
+knows about the selector, but all messages using that selector are invalid.
 
-~~~
 ABNF:
+
+~~~ abnf
 key-p-tag = %x70 [FWS] "=" [ [FWS] base64string]
 ~~~
 
@@ -477,17 +493,18 @@ conform to this specification.
 s=
 : Service Type (plain-text).  This is retired from DKIM2 and SHOULD be ignored.
 
-~~~
 ABNF:
+
+~~~ abnf
 key-s-tag = %x73 [FWS] "=" [FWS] key-s-tag-type
-*( [FWS] ":" [FWS] key-s-tag-type )
+            *( [FWS] ":" [FWS] key-s-tag-type )
 key-s-tag-type = "email" / "*" / x-key-s-tag-type
 x-key-s-tag-type = hyphenated-word ; for future extension
 ~~~
 
 t=
 : Flags, are retired from DKIM2 and SHOULD be ignored, but documented 
-  here for completeness.  They represented as a colon-separated list of names (plain-
+  here for completeness.  They are represented as a colon-separated list of names (plain-
   text; OPTIONAL, default is no flags set).  Unrecognized flags MUST be
   ignored. The defined flags are as follows:
    
@@ -504,10 +521,11 @@ t=
     domain MUST NOT be a subdomain of "d=". Use of this flag is
     RECOMMENDED unless subdomaining is required.
 
-~~~
 ABNF:
+
+~~~ abnf
 key-t-tag = %x74 [FWS] "=" [FWS] key-t-tag-flag
-*( [FWS] ":" [FWS] key-t-tag-flag )
+            *( [FWS] ":" [FWS] key-t-tag-flag )
 key-t-tag-flag = "y" / "s" / x-key-t-tag-flag
 x-key-t-tag-flag = hyphenated-word ; for future extension
 ~~~
@@ -520,8 +538,8 @@ implementations MUST support this binding.
 #### Namespace
 
 All DKIM2 keys are stored in a subdomain named "_domainkey". Given a
-DKIM2 signature header field with a "d=" tag of "example.com" and an
-"s=" tag of "foo.bar", the DNS query will be for
+DKIM2-Signature header field with a "d=" tag of "example.com" and a
+selector of "foo.bar" (in the "s=" tag), the DNS query will be for
 "foo.bar._domainkey.example.com".
 
 #### Resource Record Types for Key Storage
@@ -540,34 +558,33 @@ TXT RRs are encoded as described in {{textualrepresentation}}.
 
 # IANA Considerations
 
-This document reuses the IANA registrations in [RFC6376] in Section 7.
+This document reuses the IANA registrations in {{RFC6376}}
 
 # Security Considerations
 
 This document recommends thorough review and adherence to the Security
-Consideration in [RFC6376] in Section 8.
+Considerations in {{RFC6376}}
 
 
 --- back
 
 # RSA Key Format Considerations {#rsa}
 
-The description of the key RSA format in [RFC6376] is ambiguous as it
+The description of the RSA key format in {{RFC6376}} is ambiguous as it
 cites RSAPublicKey but implies usage of SubjectPublicKeyInfo-RSAPublicKey.
-Deployment since publication of [RFC6376] is for
+Deployment since publication of {{RFC6376}} is for
 SubjectPublicKeyInfo-RSAPublicKey.  This document specifies supporting
 both RSAPublicKey and SubjectPublicKeyInfo-RSAPublicKey, and updates
-[RFC6376] to support both.  The following is a more detailed discussion
+{{RFC6376}} to support both.  The following is a more detailed discussion
 of the errata and the basis for supporting both formats.
 
-During the development of DKIM2, Christian Rößner posted an errata in the
-the DKIM2 github repository [Clarify DKIM2 RSA p= encoding: SPKI reflector
-keys fail a strict verifier](https://github.com/dkim2wg/interop/issues/9).  
-The errata says that [RFC6376] and -00 of this document says to parse RSA as
-RSAPublicKey, however Appendix C of RFC6376 openssl instruction generates
+During the development of DKIM2, Christian Rößner posted an issue #9 in the
+DKIM2 GitHub repository [Clarify DKIM2 RSA p= encoding: SPKI reflector
+keys fail a strict verifier](https://github.com/dkim2wg/interop/issues/9). 
+The errata says that {{RFC6376}} and earlier drafts of this document specify parsing RSA keys as RSAPublicKey; however, the OpenSSL instructions in Appendix C of {{RFC6376}} generate
 SubjectPublicKeyInfo.  
 
-RSAPublicKey is defined [RFC8017] as:
+RSAPublicKey is defined in {{RFC8017}} as:
 
 ~~~ ascii-art
         RSAPublicKey ::= SEQUENCE {
@@ -576,7 +593,7 @@ RSAPublicKey is defined [RFC8017] as:
         }
 ~~~
 
-SubjectPublicKeyInfo is defined by [RFC5280] (PKIX) as:
+SubjectPublicKeyInfo is defined by {{RFC5280}} (PKIX) as:
 
 ~~~ ascii-art
         SubjectPublicKeyInfo  ::=  SEQUENCE  {
@@ -586,30 +603,29 @@ SubjectPublicKeyInfo is defined by [RFC5280] (PKIX) as:
 ~~~
 
 SubjectPublicKey with RSA key content is then defined to be RSAPublicKey in
-[RFC4055].  The errata notes that there are many other deployments of
-DKIM examples use SubjectPublicKeyInfo-RSAPublicKey instead of the specifed
+{{RFC4055}} examples use SubjectPublicKeyInfo-RSAPublicKey instead of the specified
 RSAPublicKey. 
 
-Bron Gondwana notes that there are three errata on [RFC6376]:
+Bron Gondwana notes that there are three errata on {{RFC6376}}:
 [3017](https://errata.rfc-editor.org/eid3017/), 
 [6674](https://errata.rfc-editor.org/eid6674/) and 
-[7001](https://errata.rfc-editor.org/eid7001/).  Errata #9, 3017 and 7001 says to
-use SubjectPublicKeyInfo.  6674 and 7001 fixes the example in [RFC6376].  
-Bron and 3017 suggests that both formats should be supported for interoperability.
+[7001](https://errata.rfc-editor.org/eid7001/).  Issue #9 and Errata 3017 and 7001 state to
+use SubjectPublicKeyInfo.  Errata 6674 and 7001 fix the example in {{RFC6376}}.  
+Bron and Errata 3017 suggest that both formats should be supported for interoperability.
 
 # Acknowledgments {#acks}
 {:numbered="false"}
 
-The parent document to this is DKIM [RFC6376] from which the vast
-majority of content is copied from with only slight editing to update
-for DKIM2.  The DKIM RFC was editted by Dave Crocker, Tony Hansen, and
+The parent document to this is DKIM {{RFC6376}} from which the vast
+majority of content is copied with only slight editing to update
+for DKIM2.  The DKIM RFC was edited by Dave Crocker, Tony Hansen, and
 Murray Kucherawy.  In addition, another source for this document is the
-Ed25519 extension to DKIM [RFC8463] with content transfered verbatum
-directly from.  The Ed25519 extension RFC was written by John Levine.
-Credit for the content and specification for DKIM and the Edd25519
-extension, from which DKIM2 is derived from, goes to them.  Thanks goes
+Ed25519 extension to DKIM {{RFC8463}} with content transferred verbatim
+directly.  The Ed25519 extension RFC was written by John Levine.
+Credit for the content and specification for DKIM and the Ed25519
+extension, from which DKIM2 is derived, goes to them.  Thanks goes
 to Christian Rößner for writing a detailed errata on RSA encoding in 
-[RFC6376], and to Bron Gondwana for working through the errata history
+{{RFC6376}}, and to Bron Gondwana for working through the errata history
 including those on the DKIM WG errata database.
 
 
