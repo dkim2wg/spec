@@ -1,7 +1,7 @@
 ---
 title: Domain Name Specification for DKIM2
 abbrev: DKIM2 DNS
-docname: draft-ietf-dkim-dkim2-dns-02
+docname: draft-ietf-dkim-dkim2-dns-01
 submissionType: IETF
 category: std
 ipr: trust200902
@@ -16,11 +16,6 @@ author:
     name: Wei Chuang
     org: Google
     email: weihaw@google.com
- -
-    ins: A. Robinson
-    name: Allen Robinson
-    org: Google Inc.
-    email: arobins@google.com
 
 normative:
     RFC1034:
