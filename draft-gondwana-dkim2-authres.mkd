@@ -288,10 +288,6 @@ An Authentication-Results header field is meaningful only within the
 ADMD which added it, and [RFC8601] requires that an ADMD remove
 untrusted instances of the field on ingress. That requirement applies
 to "dkim2" results exactly as it does to any other method.
-[RFC8601] also permits an ADMD to admit the results asserted by a
-specific upstream host that it has chosen to trust, even where the two
-are in disjoint administrative boundaries (Section 5 of [RFC8601]);
-{{restart}} describes a case in which doing so is useful.
 
 This bears emphasis for DKIM2 specifically. [DKIM2] excludes
 Authentication-Results from the set of header fields it signs, and
@@ -314,64 +310,21 @@ verification performed by one system is not evidence for the next.
 A system which forwards a message MUST NOT copy a "dkim2" result
 forward for the benefit of a downstream system. A forwarder wishing
 to make its own handling verifiable adds a DKIM2-Signature header
-field of its own, as [DKIM2] describes.
-
-This prohibition concerns results produced by some other Verifier. It
-does not prevent a forwarder from recording, in an
-Authentication-Results header field bearing its own authserv-id, the
-results of checks it performed itself on the message as it received
-it, nor from leaving that header field in place when it forwards the
-message. Such a record describes the message as it arrived at the
-forwarder; it is not a result for any later SMTP transaction, and a
-downstream Verifier MUST NOT treat it as a substitute for performing
-its own DKIM2 verification.
+field of its own, as [DKIM2] describes. This does not prevent a
+forwarder from leaving in place an Authentication-Results header field
+recording its own checks on the message as it arrived; a downstream
+Verifier still performs its own verification.
 
 ## Forwarders that start a new Chain of Custody {#restart}
 
-[DKIM2] does not permit a message which carries DKIM2 header fields,
-but which is not a Validly Signed DKIM2 Message, to be sent to another
-system without some local arrangement. It does permit a system to
-discard all of the DKIM2 header fields and start a new Chain of
-Custody at "i=1" and "m=1". A forwarder might do this for a message
-which has been altered, or whose envelope has been rewritten, by a
-system that is not DKIM2-aware; or for a message which arrived
-carrying no DKIM2-Signature header field at all, and which the
-forwarder authenticated only by other methods such as SPF or DKIM1.
-
-Recording the forwarder's own results in an Authentication-Results
-header field before discarding the DKIM2 header fields is an
-acceptable use of this document, and is RECOMMENDED. Once those header
-fields have been discarded, the Authentication-Results header field is
-the only remaining record of them: the "dkim2" result, the
-"header.d" and "header.i" properties, and the comment described in
-{{comment}} together record which Originator the message claimed and
-at which signature the Chain of Custody failed. The forwarder SHOULD
-record, in the same header field, the results of any other methods it
-evaluated, such as "spf" and "dkim".
-
-Such a header field carries no cryptographic protection, as set out in
-{{trust-boundary}}. In particular it is not covered by the
-DKIM2-Signature header field which starts the new Chain of Custody. An
-ADMD which chooses to admit results asserted by such a forwarder, as
-Section 5 of [RFC8601] permits:
-
-* SHOULD admit only Authentication-Results header fields bearing that
-  forwarder's authserv-id, and only on messages it received directly
-  from that forwarder, which it can establish from the Signing Domain
-  of the highest-numbered DKIM2-Signature header field;
-
-* MUST treat the admitted results as information about the message as
-  it arrived at the forwarder, and not as the outcome of its own
-  verification;
-
-* MUST NOT use a "header.d" value from such a header field as an
-  authenticated identity unless the reported result is "pass", as
-  required by {{header-d}}.
-
-The results asserted by a forwarder are only as trustworthy as that
-forwarder, and cease to be trustworthy at all once the message has
-passed through any further system, since that system could have
-altered them without detection.
+A forwarder that receives a message which is not a Validly Signed
+DKIM2 Message may discard the DKIM2 header fields and start a new
+Chain of Custody, as [DKIM2] permits. Before doing so it SHOULD record
+its results, including those of other methods such as "spf" and
+"dkim", in an Authentication-Results header field, which is then the
+only record of the discarded chain. These results remain unprotected
+({{trust-boundary}}); a downstream ADMD MAY admit them only if it has
+chosen to trust that forwarder (Section 5 of [RFC8601]).
 
 # Examples
 
@@ -448,12 +401,9 @@ Identifier, and for "dkim2" it is a sequence number:
        FAIL: Message Instance m=2 body hash sha256 mismatch)
        header.d=sender.example.com header.i=2
 
-A forwarder recording its own results before starting a new Chain of
-Custody, as described in {{restart}}. The message was relayed to it by
-relay.example.org, which is not DKIM2-aware and rewrote the MAIL FROM
-without adding a DKIM2-Signature header field of its own. The content
-was not altered, so the DKIM1 signature still verifies, but the
-envelope no longer matches the "i=1" signature:
+A forwarder about to start a new Chain of Custody ({{restart}}) for a
+message whose MAIL FROM was rewritten by a relay that is not
+DKIM2-aware:
 
     Authentication-Results: fwd.example.net;
       spf=pass smtp.mailfrom=relay.example.org;
@@ -464,10 +414,6 @@ envelope no longer matches the "i=1" signature:
        <SRS0=Hx2c=QK=sender.example.com=alice@relay.example.org>
        did not match)
        header.d=sender.example.com header.i=1
-
-The forwarder then removes the DKIM2-Signature and Message-Instance
-header fields, signs the message at "i=1" and "m=1" with its own
-Signing Domain, and forwards it with this header field left in place.
 
 # IANA considerations
 
@@ -573,12 +519,7 @@ Changes from Earlier Versions
 
 Since draft-gondwana-dkim2-authres-00
 
-* Clarified that a forwarder may record its own results and leave them
-  in place when forwarding, as distinct from copying another
-  Verifier's results.
-* Added a section and an example on recording results when a forwarder
-  starts a new Chain of Custody, and on how a receiving ADMD may admit
-  such results under Section 5 of RFC 8601.
+* Added {{restart}}: forwarders that start a new Chain of Custody.
 
 draft-gondwana-dkim2-authres-00
 

@@ -1647,8 +1647,9 @@ or not a message is accepted for delivery.
 
 However, if the message contains DKIM2-Signature or
 Message-Instance header fields but it is not a Validly Signed
-DKIM2 Message then it MUST NOT be sent to another system (without
-some local arrangement being in place). The reason for this is that
+DKIM2 Message then the existing chain MUST NOT be continued and the
+message sent to another system (without some local arrangement being
+in place). The reason for this is that
 the receiving system will be able to determine that
 the message is not a Validly Signed DKIM2 Message and that this
 would have been entirely apparent at the previous hop.
@@ -1661,7 +1662,8 @@ fail and adverse conclusions could be drawn from that failure.
 Of course, discarding all the DKIM2 header fields and starting
 again (at i=1 m=1) will mean that whatever the previous
 history of the message might be, there will be a new
-Chain of Custody starting at this point. Naturally, attention
+Chain of Custody starting at this point, and the system doing this
+becomes the Originator of the message. Naturally, attention
 will need to be paid to the provision that From header fields
 are required to be Authentic (see {{authentic-from}}).
 
