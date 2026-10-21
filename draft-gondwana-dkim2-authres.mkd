@@ -310,7 +310,21 @@ verification performed by one system is not evidence for the next.
 A system which forwards a message MUST NOT copy a "dkim2" result
 forward for the benefit of a downstream system. A forwarder wishing
 to make its own handling verifiable adds a DKIM2-Signature header
-field of its own, as [DKIM2] describes.
+field of its own, as [DKIM2] describes. This does not prevent a
+forwarder from leaving in place an Authentication-Results header field
+recording its own checks on the message as it arrived; a downstream
+Verifier still performs its own verification.
+
+## Forwarders that start a new Chain of Custody {#restart}
+
+A forwarder that receives a message which is not a Validly Signed
+DKIM2 Message may discard the DKIM2 header fields and start a new
+Chain of Custody, as [DKIM2] permits. Before doing so it SHOULD record
+its results, including those of other methods such as "spf" and
+"dkim", in an Authentication-Results header field, which is then the
+only record of the discarded chain. These results remain unprotected
+({{trust-boundary}}); a downstream ADMD MAY admit them only if it has
+chosen to trust that forwarder (Section 5 of [RFC8601]).
 
 # Examples
 
@@ -386,6 +400,20 @@ Identifier, and for "dkim2" it is a sequence number:
        i=2 fwd.example.org fail;
        FAIL: Message Instance m=2 body hash sha256 mismatch)
        header.d=sender.example.com header.i=2
+
+A forwarder about to start a new Chain of Custody ({{restart}}) for a
+message whose MAIL FROM was rewritten by a relay that is not
+DKIM2-aware:
+
+    Authentication-Results: fwd.example.net;
+      spf=pass smtp.mailfrom=relay.example.org;
+      dkim=pass header.d=sender.example.com
+       header.i=@sender.example.com header.s=sel1;
+      dkim2=permerror (i=1 sender.example.com permerror;
+       PERMERROR: DKIM2-Signature i=1 MAIL FROM
+       <SRS0=Hx2c=QK=sender.example.com=alice@relay.example.org>
+       did not match)
+       header.d=sender.example.com header.i=1
 
 # IANA considerations
 
@@ -488,6 +516,10 @@ at trust boundaries, in both directions.
 
 Changes from Earlier Versions
 =============================
+
+Since draft-gondwana-dkim2-authres-00
+
+* Added {{restart}}: forwarders that start a new Chain of Custody.
 
 draft-gondwana-dkim2-authres-00
 

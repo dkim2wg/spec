@@ -19,3 +19,7 @@ By adding your name here you are expressing your acceptance of the IETF Note Wel
 * Name: Todd Herr
 * Org: GreenArrow Email
 * Email: todd@someguyinva.com
+-
+* Name: Emanuel Schorsch
+* Org: Individual
+* Email: emschorsch@gmail.com
