@@ -401,7 +401,7 @@ Forwarders that wish to relay feedback requests without exposing their own downs
 
 If {{DKIM2AUTH}} is adopted by the DKIM Working Group, then its contents will speak on this topic, and this section can likely be deleted from this document. If it is not adopted, then this section can be revisited.
 
-Forwarders that start a new Chain of Custody are encouraged to record their arrival results in an Authentication-Results header field before discarding the DKIM2 header fields; see {{restart-chain}}.
+Forwarders that start a new Chain of Custody SHOULD record their arrival results in an Authentication-Results header field before discarding the DKIM2 header fields (see {{restart-chain}}).
 
 ## Discussion re: Maximum Number of Message-Instance and DKIM2-Signature Header Fields {#maxheaders}
 
