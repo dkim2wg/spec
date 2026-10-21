@@ -305,6 +305,11 @@ DKIM2-Signature header field created for the message uses a Signing
 Domain that can be matched to the domain within the email
 address in the From.
 
+Body-Authentic
+: An Authentic From header field whose relevant DKIM2-Signature
+header field was created when the message body was as delivered
+(see {{authentic-from}}).
+
 Validly Signed DKIM2 Message
 : A Validly Signed DKIM2 Message is one which meets all the
 requirements set out in this specification on Signers, particularly
@@ -1387,6 +1392,15 @@ Message-Instance header field with the Recipe will,
 along with the new From header field, be the relevant header
 fields for comparison.
 
+An Authentic From header field is also Body-Authentic if the body
+hash recorded in the Message-Instance header field identified by the
+m= tag of the relevant DKIM2-Signature header field equals the body
+hash of the message as delivered. A From header field that is
+Authentic but not Body-Authentic shows that the body was changed by a
+system that did not take responsibility for the From header field.
+How this is treated is a matter for local policy and for other
+specifications.
+
 A From header field with more than one email address, or one that
 uses domain-literals (IP addresses instead of domains), can
 never be Authentic.
@@ -2049,6 +2063,9 @@ relevant DKIM2-Signature field(s).
 Details of how to identify the relevant header fields are given
 in {{authentic-from}}. Note that a From header field with more
 than one address, or with a domain-literal, can never be Authentic.
+
+A Verifier MAY also determine whether the From header field is
+Body-Authentic (see {{authentic-from}}) and report the result.
 
 Possible errors:
 
