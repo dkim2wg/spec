@@ -306,9 +306,9 @@ Domain that can be matched to the domain within the email
 address in the From.
 
 Body-Authentic
-: An Authentic From header field whose relevant DKIM2-Signature
-header field was created when the message body was as delivered
-(see {{authentic-from}}).
+: An Authentic From header field for which the highest numbered
+DKIM2-Signature header field with a matching Signing Domain was created
+when the message body was as delivered (see {{authentic-from}}).
 
 Validly Signed DKIM2 Message
 : A Validly Signed DKIM2 Message is one which meets all the
@@ -1392,12 +1392,14 @@ Message-Instance header field with the Recipe will,
 along with the new From header field, be the relevant header
 fields for comparison.
 
-An Authentic From header field is also Body-Authentic if the body
-hash recorded in the Message-Instance header field identified by the
-m= tag of the relevant DKIM2-Signature header field equals the body
-hash of the message as delivered. A From header field that is
-Authentic but not Body-Authentic shows that the body was changed by a
-system that did not take responsibility for the From header field.
+An Authentic From header field is also Body-Authentic if, for the
+highest numbered DKIM2-Signature header field whose Signing Domain is
+a relaxed domain match for the domain in the From header field, the
+body hash recorded in the Message-Instance header field identified by
+its m= tag equals the body hash of the message as delivered. A From
+header field that is Authentic but not Body-Authentic shows that the
+body was changed by a system whose Signing Domain does not match the
+From header field.
 How this is treated is a matter for local policy and for other
 specifications.
 
