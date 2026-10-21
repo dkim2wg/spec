@@ -217,7 +217,7 @@ To ensure maximum interoperability, Signers SHOULD sign messages with multiple D
 
 Because it is expected that the transition from DKIM1 to DKIM2 across the email ecosystem will be gradual, Signers SHOULD sign messages with both DKIM1 and DKIM2 keys until such time as the deployment of DKIM2 is effectively ubiquitous.
 
-## Only Sign on Exit
+## Only Sign on Exit {#sign-on-exit}
 
 Many email messages are sent or forwarded from infrastructure that requires the message to transit multiple hops before reaching its egress point to travel to its destination. Senders MUST apply DKIM2 signatures to messages only at the last hop before the message leaves their infrastructure.
 
@@ -261,6 +261,8 @@ When a message reaches a Forwarder, if the Forwarder determines that the Domain 
 
 A Forwarder that rewrites the RFC5322.From header field in this way is, by definition, unable to honor a "donotmodify" request on the same message.
 
+A Forwarder that starts a new Chain of Custody ({{restart-chain}}) has a further reason to rewrite the RFC5322.From header field, independent of DMARC: unless it can sign with a Signing Domain that is a relaxed domain match for the RFC5322.From domain, the RFC5322.From header field will not be Authentic (see the "From header fields are required to be Authentic" section of {{DKIM2}}), and the message will not be a Validly Signed DKIM2 Message. Such a Forwarder MUST therefore rewrite the RFC5322.From header field whether or not the Domain Owner has published a DMARC policy record.
+
 ## Preserve Recipient Privacy When Forwarding {#privacy-forwarding}
 
 Two related mechanisms in {{DKIM2}} give a privacy-conscious Forwarder tools to avoid revealing, to parties earlier in the Chain of Custody, exactly where a message has been forwarded to.
@@ -276,6 +278,28 @@ If a Forwarder cannot or does not honor a "donotmodify" or "donotexplode" reques
 ## Manage Chain of Custody Across Trust-Boundary ("Imaginary") Hops
 
 A Forwarder that hands a message to another domain under a business or operational arrangement -- for instance, an outsourced bulk-sending or forwarding vendor operating on the ADMD's behalf -- without an actual SMTP hop occurring between the two domains' own infrastructure, MUST preserve the Chain of Custody using the mechanisms in Section 9.3 of {{DKIM2}}: either fabricate a DKIM2-Signature header field with plausible mf=/rt= values for the imaginary hop, or use the nd= tag to name the domain that will apply the next DKIM2-Signature header field in sequence. Operators using the nd= mechanism SHOULD document the out-of-band arrangement referenced in Section 9.3 of {{DKIM2}} (for example, in a contract or a shared operational runbook) so that it can be produced if a downstream Verifier or an abuse desk questions the resulting break in the SMTP-visible Chain of Custody.
+
+## Start a New Chain of Custody for Messages That Arrive Invalid {#restart-chain}
+
+A Forwarder will sometimes receive a message that local policy says it should forward, but that is not a Validly Signed DKIM2 Message. Common examples are:
+
+* a message that passed through a system that is not DKIM2-aware, which altered the message without recording Recipes, or rewrote the MAIL FROM or RCPT TO so that it no longer matches the highest-numbered DKIM2-Signature header field;
+
+* a message that never entered the DKIM2 ecosystem ({{never-entered}}), which the Forwarder could authenticate only by SPF or DKIM1.
+
+{{DKIM2}} does not permit a message that carries DKIM2 header fields, but is not a Validly Signed DKIM2 Message, to be sent to another system without some local arrangement, and an intermediary cannot "patch up" an invalid Chain of Custody (see the "Verification" section of {{DKIM2}}). {{DKIM2}} does, however, permit the Forwarder to discard all DKIM2 header fields and start a new Chain of Custody at i=1 m=1. A Forwarder that forwards such a message SHOULD do so in this way: it removes all DKIM2-Signature and Message-Instance header fields, and then signs the message as an Originator would. A message that arrived with no DKIM2 header fields at all is simply signed at i=1 m=1.
+
+Where the system that is not DKIM2-aware lies within the Forwarder's own infrastructure, signing only on exit ({{sign-on-exit}}) avoids the problem altogether, and the remainder of this section is mainly of concern where that system belongs to a different ADMD.
+
+A Forwarder that starts a new Chain of Custody becomes, for DKIM2 purposes, the Originator of the message. Accordingly:
+
+* It MUST ensure that the RFC5322.From header field is Authentic, which generally means rewriting it as described in {{munging}}. A new Chain of Custody whose RFC5322.From header field is not Authentic is not a Validly Signed DKIM2 Message.
+
+* It is the terminal point for DSNs about the message, because the i=1 DKIM2-Signature header field records its own MAIL FROM. It MUST NOT propagate such DSNs to addresses taken from the discarded DKIM2 header fields, since those addresses can no longer be verified. Whether and how it notifies the original sender is a matter of local policy.
+
+* It SHOULD record the results of the checks it performed on arrival -- for example SPF, DKIM1, and DKIM2, including the signature at which DKIM2 verification failed -- in an Authentication-Results header field as described in {{DKIM2AUTH}}, before discarding the DKIM2 header fields, and SHOULD leave that header field in place when it forwards the message. This preserves a record of the message's earlier history. That record is not covered by any DKIM2 signature: it is of value principally within the Forwarder's own ADMD, and to downstream ADMDs that have chosen to trust results asserted by the Forwarder (Section 5 of {{RFC8601}}). Downstream Verifiers still verify the new Chain of Custody themselves.
+
+* It SHOULD restrict this practice to messages for which it is prepared to be accountable, for example messages that it has authenticated by other means, or that it handles on behalf of its own users or customers. Once a new Chain of Custody is started, downstream reputation and DKIM Replay detection attach to the Forwarder's Signing Domain (see {{security-considerations}}).
 
 ## Minimize the Content of Recipes
 
@@ -377,6 +401,8 @@ Forwarders that wish to relay feedback requests without exposing their own downs
 
 If {{DKIM2AUTH}} is adopted by the DKIM Working Group, then its contents will speak on this topic, and this section can likely be deleted from this document. If it is not adopted, then this section can be revisited.
 
+Forwarders that start a new Chain of Custody are encouraged to record their arrival results in an Authentication-Results header field before discarding the DKIM2 header fields; see {{restart-chain}}.
+
 ## Discussion re: Maximum Number of Message-Instance and DKIM2-Signature Header Fields {#maxheaders}
 
 {{DKIM2}} does not impose a protocol-level limit on the number of Message-Instance or DKIM2-Signature header fields a message may accumulate; each is added, at most, once per hop, and the number of hops a message may legitimately transit is itself unbounded in the general case (this mirrors the position SMTP itself takes with respect to Received: header fields). {{DKIM2}} does, however, bound the number of hash and signature *entries* that may appear within a single such header field (Section 11.2 of {{DKIM2}} prohibits a duplicate hash algorithm or a duplicate selector within one header field).
@@ -419,7 +445,7 @@ This overlap does not make SPF redundant in the near term, for at least two reas
 
 This document therefore RECOMMENDS that Receiving ADMDs continue to perform SPF checks alongside DKIM2 verification for the foreseeable future, as a defense-in-depth measure and as a fallback for the "Never Entered" case, and does not anticipate SPF becoming safe to retire on any timeline shorter than the one discussed for DMARC in Section 7.7.
 
-# Security Considerations
+# Security Considerations {#security-considerations}
 
 This section discusses operational security considerations for deployers of DKIM2; it complements, rather than duplicates, the protocol-level Security Considerations to be provided by {{DKIM2}} itself, which at the time of this writing is still marked "TBA" in that document.
 
@@ -432,6 +458,8 @@ This section discusses operational security considerations for deployers of DKIM
 **Trust in Reviser-supplied Recipes.** A Recipe is, in effect, an assertion made by the Reviser as to the message's previous content prior to the application of the Recipe. {{DKIM2}} lets a downstream Verifier check that a Recipe, once applied, reproduces the hash values covered by the previous hop's signature, but it cannot detect a Reviser that has colluded with, or been compromised by, an attacker to construct a self-consistent but misleading history for a message it originated or altered in bad faith. Reputation and trust decisions based on DKIM2 Chain of Custody data SHOULD, as with DKIM1 and ARC before it, weight the trustworthiness of each Reviser in the chain rather than treating a self-consistent chain as, by itself, proof of benign handling.
 
 **Privacy exposure via Recipes, envelope tags, and feedback.** Elsewhere in this document the reader will find discussions on the topics of the exposure of forwarding-target identities via the rt= tag, the exposure of removed or redacted content via content-bearing Recipes, and the exposure of handling information via the "feedback" mechanism. Implementers and operators SHOULD treat each of these as a data-minimization decision to be made deliberately, not as an incidental side effect of correctly implementing the protocol.
+
+**Laundering through a new Chain of Custody.** A Forwarder that starts a new Chain of Custody ({{restart-chain}}) for every message it receives, regardless of how the message was authenticated, offers a way to convert a replayed or unauthenticated message into one that carries a valid DKIM2 signature. The new signature is the Forwarder's own, so downstream reputation systems and DKIM Replay detection will attribute the message to the Forwarder's Signing Domain, and Receivers SHOULD weigh the Forwarder's reputation accordingly. Forwarders SHOULD limit the practice to messages for which they are prepared to be accountable, as described in that section, and Receivers SHOULD NOT treat Authentication-Results header fields carried on such messages as trustworthy unless they have chosen to trust the Forwarder that added them.
 
 **Key management.** The key rotation guidance in {{rotate-keys}} exists in part for security reasons: a selector that is reused after its key material changes, or a private key that is not rotated on a reasonable cadence, increases the impact of any eventual key compromise. Operators SHOULD treat DKIM2 key management with at least the same rigor they apply to DKIM1 today.
 
@@ -450,6 +478,11 @@ The author thanks Richard Clayton, Wei Chuang, and Bron Gondwana for their work 
 {: numbered="false"}
 
 *This section is to be removed by the RFC Editor before publication.*
+
+## Since draft-ietf-dkim-dkim2-bcp-01
+{: numbered="false"}
+
+* Added {{restart-chain}}, on Forwarders that start a new Chain of Custody for messages that arrive without a valid DKIM2 chain, with corresponding text on From munging, Authentication-Results, and laundering in the Security Considerations.
 
 ## Since draft-ietf-dkim-dkim2-bcp-00
 {: numbered="false"}
