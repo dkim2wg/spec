@@ -956,8 +956,10 @@ The relaxed domain match algorithm is used for four purposes:
    in checking the Chain of Custody where a relaxed domain match
    is required.
 
-   The i=1 DKIM2-Signature header field is not checked, nor is any
-   DKIM2-Signature header field that follows one with an nd= tag. The
+   The i=1 DKIM2-Signature header field is not checked, nor is the
+   highest numbered one with the "break" flag (see {{verification}}) or
+   any below it, nor is any DKIM2-Signature header field that follows
+   one with an nd= tag. The
    remaining DKIM2-Signature header fields can be considered in ascending
    numeric order.
 
@@ -1165,7 +1167,8 @@ it is expected that header fields will be labeled as DKIM3 instead.
 The Originator of a message uses the value 1. Further DKIM2-Signature
 header fields are added with a value one more than the current highest
 numbered DKIM2-Signature header field. A message with gaps in the
-numbering is not a Validly Signed DKIM2 Message.
+numbering, other than below a DKIM2-Signature header field with the
+"break" flag, is not a Validly Signed DKIM2 Message.
 
 ABNF:
 
@@ -1340,6 +1343,10 @@ The flag values that report things are:
 This flag is of importance when detecting DKIM Replay attacks
 (see {{DKIM-Replay}}).
 
+"break": the message reached this Signer with DKIM2 header fields that
+did not permit the chain to be continued, and this Signer has started
+a new Chain of Custody without removing them (see {{verification}}).
+
 The flag values that make requests are:
 
 "feedback": this Signer requests feedback about how this message is handled
@@ -1358,7 +1365,7 @@ ABNF:
     sig-f-tag        = %s"f" [FWS] "=" [FWS] sig-f-tag-data
                        *( [FWS] "," [FWS] sig-f-tag-data)
     sig-f-tag-data   = %s"feedback" / %s"feedhere" / %s"exploded" /
-                       x-sig-f-tag-data
+                       %s"break" / x-sig-f-tag-data
     x-sig-f-tag-data = textstring ; for later extension
 
 # From header fields are required to be Authentic {#authentic-from}
@@ -1399,7 +1406,9 @@ of a message. They may be done in any appropriate order.
 If a message is not the initial form of a message (that is, it
 already contains DKIM2-Signature or Message-Instance header
 fields) then a Signer MUST NOT sign the message unless it is
-a Validly Signed DKIM2 Message (see {{verification}}), or
+a Validly Signed DKIM2 Message (see {{verification}}) or would be one
+but for its From header field not being Authentic, the Signer sets
+the "break" flag (see {{verification}}), or
 there is an out-of-band arrangement covering the situation
 (see {{imaginary-hops}}).
 
@@ -1417,7 +1426,8 @@ give the same hash values as those recorded in the highest version
 (m=) Message-Instance header field then a new Message-Instance
 header field MUST be added.
 
-Such a Message-Instance header field MUST contain Recipes to allow
+Such a Message-Instance header field MUST contain Recipes (unless
+the "break" flag is set, see {{verification}}) to allow
 recreation of the message corresponding to the hash values in the
 previously highest numbered Message-Instance header field.
 Alternatively, it could contain a
@@ -1647,8 +1657,11 @@ or not a message is accepted for delivery.
 
 However, if the message contains DKIM2-Signature or
 Message-Instance header fields but it is not a Validly Signed
-DKIM2 Message then it MUST NOT be sent to another system (without
-some local arrangement being in place). The reason for this is that
+DKIM2 Message then the existing chain MUST NOT be continued and the
+message sent to another system unless the "break" flag is set as
+described below, or some local arrangement is in place. A message that
+fails only because its From header field is not Authentic can be
+continued without the "break" flag. The reason for this is that
 the receiving system will be able to determine that
 the message is not a Validly Signed DKIM2 Message and that this
 would have been entirely apparent at the previous hop.
@@ -1664,6 +1677,20 @@ history of the message might be, there will be a new
 Chain of Custody starting at this point. Naturally, attention
 will need to be paid to the provision that From header fields
 are required to be Authentic (see {{authentic-from}}).
+
+Alternatively, the Signer can keep the existing DKIM2 header fields
+and set the "break" flag in the DKIM2-Signature header field that it
+adds. It MUST also add a new Message-Instance header field, which need
+not contain Recipes, and MUST first remove any DKIM2-Signature or
+Message-Instance header field whose i= or m= value cannot be
+determined or is duplicated, so that the header fields can be placed
+in order (see {{calculate-signature}}). The Signer is then the
+Originator of the message: Verifiers treat its DKIM2-Signature header
+field and that Message-Instance header field as the i=1 and m=1 header
+fields, stop verifying there, and MUST NOT rely on any lower numbered
+DKIM2-Signature or Message-Instance header field for any purpose.
+Those header fields remain, covered by the new signature, as a record
+of the message as the Signer received it.
 
 ## Provisionally Verified messages
 
@@ -2171,7 +2198,7 @@ will be null ("<>").
 A Forwarder which receives a DSN MAY propagate this DSN to the
 MAIL FROM address used to deliver the message to it
 (which can be found in the highest numbered DKIM2-Signature
-header field).
+header field). A Forwarder that set the "break" flag MUST NOT do so.
 
 When propagating the DSN back along the forwarding chain
 the first and second parts of the DSN MUST be rewritten so

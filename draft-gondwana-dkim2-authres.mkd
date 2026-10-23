@@ -150,8 +150,9 @@ determined.
 ### header.d {#header-d}
 
 The value of the "d=" tag of the DKIM2-Signature header field whose
-"i=" tag has the value 1: that is, the Signing Domain of the
-Originator of the message.
+"i=" tag has the value 1, or of the highest numbered one with the
+"break" flag ([DKIM2]) if there is one: that is, the Signing Domain of
+the Originator of the message.
 
 This is the identity to which a receiving system would ordinarily
 attach reputation, and is the direct analogue of the "header.d"
@@ -161,8 +162,8 @@ reported, because [DKIM2] requires it to match the SMTP transaction
 in which the message was received, and it is therefore already
 available to the receiving system by other means.
 
-This property MUST be omitted if no DKIM2-Signature header field with
-"i=1" is present, or if such a field is present but sufficiently
+This property MUST be omitted if no such DKIM2-Signature header field
+is present, or if such a field is present but sufficiently
 malformed that no "d=" value can be extracted from it.
 
 A Verifier MAY report "header.d" alongside any result value, and
