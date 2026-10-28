@@ -1,7 +1,7 @@
 ---
 title: A Diagnostic Header Field for DKIM2 Implementations
 abbrev: DKIM2 Debug Header
-docname: draft-gondwana-dkim2-debug-header-01
+docname: draft-gondwana-dkim2-debug-header-02
 submissionType: IETF
 number:
 date:
@@ -73,9 +73,9 @@ Basic email terminology is taken from [RFC5598]. The terms Signer,
 Verifier, Originator, Message-Instance, Recipe and Chain of Custody
 are used as defined in [DKIM2].
 
-Syntax descriptions use Augmented BNF (ABNF) [RFC5234]. The tokens
-"FWS" and "CRLF" are imported from [RFC5322], and "x-tag" is the
-extension tag rule of [DKIM2].
+Syntax descriptions use Augmented BNF (ABNF) [RFC5234]. The token
+"CRLF" is imported from [RFC5234], and "tag-list" from the
+"Tag=Value Lists" section of [DKIM2].
 
 An "emitter" is any piece of software which adds an X-DKIM2-Info
 header field to a message. An "action" is the single step in DKIM2
@@ -102,23 +102,21 @@ message on the basis of an X-DKIM2-Info header field.
 
 ## Syntax {#syntax}
 
-The value is a list of tag=value pairs, each followed by ";", using
-exactly the tag-list syntax of the Message-Instance and
-DKIM2-Signature header fields in [DKIM2]:
+The value is a Tag=Value list, using exactly the syntax that
+[DKIM2] defines for the Message-Instance and DKIM2-Signature header
+fields:
 
-    info-field    = "X-DKIM2-Info:" info-tag-list CRLF
-    info-tag-list = *([FWS] x-tag [FWS] ";" [FWS])
+    info-field = "X-DKIM2-Info:" tag-list CRLF
 
-Every tag, including the last, is followed by ";". A tag value may
-contain "=", ",", "(", ")" and space. It MUST NOT contain ";", which
-terminates a tag. There is no quoting mechanism; an
+A tag value may contain "=", ",", "(", ")" and space. It MUST NOT
+contain ";", which separates tags. There is no quoting mechanism; an
 emitter MUST replace or remove ";" in any value it substitutes.
 
 Five tags are always present, in the order "draft", "repo", "date",
 "sw", "action", followed by any supplementary tags in alphabetical
-order. Tag names are lower case. Unknown tags MUST be ignored. A
-message may carry any number of X-DKIM2-Info fields, from any number
-of emitters.
+order. Tag names and values are case-sensitive, and tag names are
+lower case. Unknown tags MUST be ignored. A message may carry any
+number of X-DKIM2-Info fields, from any number of emitters.
 
 ## Provenance tags {#provenance}
 
@@ -127,7 +125,7 @@ same in every field an emitter produces.
 
 draft:
 : The [DKIM2] revision the emitter implements, without the "draft-"
-  prefix, for example "ietf-dkim-dkim2-spec-06".
+  prefix, for example "ietf-dkim-dkim2-spec-08".
 
 repo:
 : Where the emitter's source code lives, as host and path with no
@@ -165,10 +163,10 @@ hc:
 
 hn:
 : The names of those fields, lower case, in the order they were
-  hashed (which [DKIM2] defines as alphabetical), comma-separated
-  with no whitespace. A name appears once per field, so the list may
-  contain duplicates; its length equals "hc", and it is empty when
-  "hc" is 0.
+  hashed (which [DKIM2] defines as ascending octet order),
+  comma-separated with no whitespace. A name appears once per field,
+  so the list may contain duplicates; its length equals "hc", and it
+  is empty when "hc" is 0.
 
 snapf:
 : "Snapshot fetched": the identifier of the stored earlier copy of
@@ -190,14 +188,15 @@ not expect them from other software.
 ## `verify=<result>` {#verify}
 
 The emitter verified the message on receipt. The result is one of
-the four [DKIM2] output states in lower case, or "none" if there was
-no DKIM2-Signature, optionally followed by a free-text explanation in
+the four [DKIM2] output states in lower case, or "none" if there were
+no DKIM2 header fields, as reported in Authentication-Results
+([AUTHRES]), optionally followed by a free-text explanation in
 parentheses:
 
     action=verify=pass (i=1..2 verified)
     action=verify=fail (Message-Instance m=2 header hash
       mismatch (sha256))
-    action=verify=none (no DKIM2-Signature headers found)
+    action=verify=none (no DKIM2 header fields found)
 
 The authoritative result is in Authentication-Results ([AUTHRES]).
 No supplementary tags.
@@ -234,9 +233,11 @@ taken. Where the action added a header field, the emitter MUST add
 that field first and the X-DKIM2-Info after it, so the X-DKIM2-Info
 sits immediately above the field it describes.
 
-The value is folded. Folding MUST happen only after a ";" or
-after a "," inside a list; a consumer MUST ignore whitespace
-next to ";" and ",". An emitter MUST NOT fold inside a token.
+The value is folded. Folding MUST happen only after a ";", after a
+"," inside a list, or at a space inside a value. Whitespace next to
+";" is not part of any value under [DKIM2]; in addition, a consumer
+MUST ignore whitespace next to ",". An emitter MUST NOT fold inside
+a token.
 
 The field is excluded from the [DKIM2] header hash by the "x-" rule
 ({{why-x}}). An emitter MUST NOT include it in anything it signs or
@@ -266,23 +267,23 @@ repositories and program names are examples.
 An inbound filter verified a message and, finding no
 Message-Instance, added "m=1":
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
-      repo=git.example.net/dkim2; date=2026-08-28;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+      repo=git.example.net/dkim2; date=2026-10-28;
       sw=inbound-filter; action=mi-m=1; hc=8;
       hn=content-type,date,from,message-id,mime-version,subject,
       to,to;
       snaps=a5/a5440deb07cdcf63cd16bfaa29d9a87c0b97a300e1c2d3f4;
     Message-Instance: m=1; ...
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
-      repo=git.example.net/dkim2; date=2026-08-28;
-      sw=inbound-filter; action=verify=none (no DKIM2-Signature
-      headers found);
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+      repo=git.example.net/dkim2; date=2026-10-28;
+      sw=inbound-filter; action=verify=none (no DKIM2 header
+      fields found);
     Authentication-Results: mx.example.net; dkim2=none
 
 The same message after a mailing list recorded its changes as "m=2":
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
-      repo=git.example.org/listmanager; date=2026-08-28;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+      repo=git.example.org/listmanager; date=2026-10-28;
       sw=listmanager; action=mi-m=2; hc=18;
       hn=archived-at,content-type,date,feedback-id,from,list-archive,
       list-help,list-id,list-owner,list-post,list-subscribe,
@@ -293,27 +294,27 @@ The same message after a mailing list recorded its changes as "m=2":
 
 An outbound filter then verified the chain and signed:
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
-      repo=git.example.net/dkim2; date=2026-08-28;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+      repo=git.example.net/dkim2; date=2026-10-28;
       sw=outbound-filter; action=sign d=list.example.org a=rsa-sha256;
     DKIM2-Signature: i=2; d=list.example.org; ...
 
 A Signer which declined because the Message-Instance chain would not
 undo:
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
-      repo=git.example.net/dkim2; date=2026-08-28;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+      repo=git.example.net/dkim2; date=2026-10-28;
       sw=outbound-filter; action=not-signed=broken-mi-chain;
 
 Two implementations on different drafts:
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-06;
-      repo=git.example.net/dkim2; date=2026-08-28;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+      repo=git.example.net/dkim2; date=2026-10-28;
       sw=inbound-filter; action=verify=fail (Message-Instance m=1
       header hash mismatch (sha256));
     ...
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-05;
-      repo=git.example.com/mta; date=2026-08-25;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-07;
+      repo=git.example.com/mta; date=2026-10-18;
       sw=delivery-proxy; action=mi-m=1; hc=8;
       hn=content-type,date,feedback-id,from,message-id,mime-version,
       subject,to;
@@ -342,6 +343,16 @@ and SHOULD cap the length of "hn".
 
 Changes from Earlier Versions
 =============================
+
+draft-gondwana-dkim2-debug-header-02
+
+Reference the generic Tag=Value list syntax of
+draft-ietf-dkim-dkim2-spec-08, which makes the final ";" optional,
+in place of the "x-tag" rule it no longer defines. Permit folding at
+a space inside a value, as the examples already did. "verify=none"
+means no DKIM2 header fields, as in [AUTHRES]. Corrected the
+header hash order to ascending octet order. Examples updated to
+current draft revisions.
 
 draft-gondwana-dkim2-debug-header-01
 

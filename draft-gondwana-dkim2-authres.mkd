@@ -1,7 +1,7 @@
 ---
 title: Reporting DKIM2 Verification Results in Authentication-Results
 abbrev: DKIM2 Authentication-Results
-docname: draft-gondwana-dkim2-authres-00
+docname: draft-gondwana-dkim2-authres-01
 submissionType: IETF
 number:
 date:
@@ -63,9 +63,9 @@ within that same ADMD. [DKIM2] anticipates this: it defines its
 verification outcomes as four states chosen "for compatibility with
 the Authentication-Results header field", and it defines a set of
 human-readable strings which a Verifier is directed to use when
-describing a failure. It does not, however, say how any of this is
-expressed in an Authentication-Results header field, nor does it
-register anything with IANA.
+describing a failure. It leaves to this document how any of this is
+expressed in an Authentication-Results header field, and the
+registration of anything with IANA.
 
 This document supplies that. It registers the "dkim2" authentication
 method and its result values, and defines two properties. It
@@ -123,14 +123,17 @@ follows:
 This document additionally defines the result value:
 
 none:
-: The message contained no DKIM2-Signature header field, so no
-  verification was attempted.
+: The message contained no DKIM2 header fields: neither a
+  Message-Instance nor a DKIM2-Signature header field.
 
-"none" is not one of the four states of [DKIM2], because those four
-are all outcomes of having attempted a verification. It serves the
-same purpose as "none" does for DKIM1 and for ARC, and allows a
-consumer to distinguish a message which was checked and carried
-nothing to check from a message which was never checked at all.
+[DKIM2] reports such a message as a PERMERROR, with the
+human-readable string "PERMERROR: No DKIM2 header fields found". In
+an Authentication-Results header field it is instead reported as
+"none", which serves the same purpose as "none" does for DKIM1 and
+for ARC, and allows a consumer to distinguish a message which was
+checked and carried nothing to check from a message which was never
+checked at all. A message which carries some DKIM2 header fields but
+not others is not reported as "none".
 
 A Verifier which attempts DKIM2 verification SHOULD report
 "dkim2=none" rather than omitting the method, so that this
@@ -177,17 +180,12 @@ The value of the "i=" tag of the DKIM2-Signature header field to
 which the reported failure is attributed.
 
 This property MUST be omitted when the result is "pass" or "none". It
-MUST also be omitted where the reported failure is a property of the
-message as a whole rather than of any one signature, which is the
-case for the following failures defined in [DKIM2]:
+MUST also be omitted where the reported failure cannot be attributed
+to any one signature.
 
-* a message has been modified despite a "donotmodify" request;
-* a message has been exploded despite a "donotexplode" request;
-* a duplicate message has been received with no "exploded" flag.
-
-Where a Verifier has ceased verifying upon detecting a single
-failure, as [DKIM2] permits, the value reported is that of the
-signature at which it stopped.
+Where a Verifier has ceased verifying once the outcome was known, as
+[DKIM2] permits, the value reported is that of the signature at which
+it stopped.
 
 Some of the failures defined in [DKIM2] are reported against a
 Message-Instance header field, identified by its "m=" tag, rather
@@ -223,8 +221,8 @@ defined in {{properties}}.
 
 When the reported result is anything other than "pass" or "none", the
 comment SHOULD include, verbatim, the relevant human-readable string
-defined in [DKIM2], with its "m=`<x>`", "tag=`<y>`", "`<selector>`"
-and "`<value>`" placeholders substituted as that document directs.
+defined in [DKIM2], with its "`<x>`", "`<y>`", "`<value>`", "`<s1>`"
+and "`<s2>`" placeholders substituted as that document directs.
 [DKIM2] already instructs Verifiers to use those strings so as to
 give senders the maximum possible assistance; reproducing the string
 here places it where a recipient-side diagnosis will find it.
@@ -250,17 +248,17 @@ human-readable string from [DKIM2].
 
 The "skipped" outcome records a signature which was not verified,
 either because the Verifier ceased verifying upon detecting a failure
-or because it was unable to check that signature. Note that [DKIM2]
-directs a Verifier to check the most recently applied signature
-first, so where verification stops early it is generally the
-lower-numbered signatures which are reported as skipped.
+or because it was unable to check that signature. [DKIM2] does not
+specify the order in which signatures are checked, so which
+signatures are reported as skipped depends on the Verifier.
 
 ### Escaping {#escaping}
 
 Several of the values substituted into the human-readable strings of
 [DKIM2] originate in the message under evaluation, and are therefore
 under the control of whoever composed or handled it. These include
-Selector values, domain names, and MAIL FROM and RCPT TO values.
+Selector values, domain names, MAIL FROM and RCPT TO values, and the
+text of invalid Recipe steps.
 
 The "ctext" production of [RFC5322] excludes the characters "("
 (%x28), ")" (%x29) and "\\" (%x5C), and comments nest. A value
@@ -278,9 +276,9 @@ on the length of any substituted value.
 ## Reporting {#reporting}
 
 A Verifier adds its result to an Authentication-Results header field
-as described in [RFC8601]. [DKIM2] observes that adding an
-Authentication-Results header field does not count as a modification
-to the message for DKIM2 purposes, because that field is not signed.
+as described in [RFC8601]. [DKIM2] ignores Authentication-Results
+header fields when calculating header hash values, so adding one
+does not count as a modification to the message for DKIM2 purposes.
 
 ## Trust boundary {#trust-boundary}
 
@@ -340,7 +338,7 @@ is not an authenticated identity here:
       dkim2=fail (i=1 sender.example.com skipped,
        i=2 list.example.org skipped, i=3 fwd.example.net fail,
        i=4 relay.example.net pass;
-       FAIL: DKIM2-Signature i=3 sel1 incorrect signature)
+       FAIL: DKIM2-Signature i=3 selector sel1 incorrect signature)
        header.d=sender.example.com header.i=3
 
 A message for which a public key could not be retrieved:
@@ -350,26 +348,17 @@ A message for which a public key could not be retrieved:
        TEMPERROR: DKIM2-Signature i=1 public key sel1 could not
        be fetched) header.d=sender.example.com header.i=1
 
-A message carrying no DKIM2-Signature header field at all:
+A message carrying no DKIM2 header fields at all:
 
     Authentication-Results: mx.example.net; dkim2=none
-
-A duplicate message detected as a replay. The chain itself verified,
-so no single signature is at fault and "header.i" is omitted:
-
-    Authentication-Results: mx.example.net;
-      dkim2=fail (i=1 sender.example.com pass,
-       i=2 fwd.example.org pass;
-       FAIL: Duplicate message with no exploded flag)
-       header.d=sender.example.com
 
 A Chain of Custody failure in which the substituted MAIL FROM value
 contains parentheses, and has been escaped as {{escaping}} requires:
 
     Authentication-Results: mx.example.net;
-      dkim2=permerror (i=1 sender.example.com pass,
-       i=2 fwd.example.org permerror;
-       PERMERROR: DKIM2-Signature i=2 MAIL FROM
+      dkim2=fail (i=1 sender.example.com pass,
+       i=2 fwd.example.org fail;
+       FAIL: DKIM2-Signature i=2 MAIL FROM
        <alice\(work\)@example.com> did not match)
        header.d=sender.example.com header.i=2
 
@@ -384,7 +373,7 @@ Identifier, and for "dkim2" it is a sequence number:
        header.i=@sender.example.com header.s=sel1;
       dkim2=fail (i=1 sender.example.com pass,
        i=2 fwd.example.org fail;
-       FAIL: Message Instance m=2 body hash sha256 mismatch)
+       FAIL: Message-Instance m=2 body hash sha256 mismatch)
        header.d=sender.example.com header.i=2
 
 # IANA considerations
@@ -437,10 +426,11 @@ the ingress requirement of [RFC8601], and it is not optional.
 ## A pass is not an assurance about content
 
 [DKIM2] states explicitly that its output states report whether a
-message reached its destination unmodified and unreplayed in a manner
-consistent with that specification, and that they do not attest in
-any way as to whether the message will be of value to the recipient
-or whether any modifications made to it were benign.
+message traveled to its destination without undeclared modifications
+and along a delivery path consistent with that specification, and
+that they do not attest in any way as to whether the message will be
+of value to the recipient or whether any declared modifications were
+benign.
 
 A "dkim2=pass" therefore means that the Chain of Custody held. It
 does not mean the message is wanted, truthful, or safe, and it does
@@ -488,6 +478,17 @@ at trust boundaries, in both directions.
 
 Changes from Earlier Versions
 =============================
+
+draft-gondwana-dkim2-authres-01
+
+Aligned with draft-ietf-dkim-dkim2-spec-08. "none" now means no DKIM2
+header fields at all, and is mapped to the PERMERROR that [DKIM2]
+reports for that case. Removed the donotmodify, donotexplode and
+duplicate-message failures from "header.i", as [DKIM2] no longer
+defines them, along with the duplicate-message example. Updated
+placeholder names and example strings to match [DKIM2], including
+MAIL FROM mismatch now being a FAIL. [DKIM2] no longer specifies the
+order in which signatures are checked.
 
 draft-gondwana-dkim2-authres-00
 
