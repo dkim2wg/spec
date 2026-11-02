@@ -409,11 +409,12 @@ Policy Record. A tag name is registered once and has one meaning."
 
 ## DKIM Key Type
 
-IANA is requested to add the following entry and to add RFC XXXX
-as a reference for "rsa":
+IANA is requested to update the "rsa" entry and to add the "mldsa44"
+entry as follows:
 
 | TYPE    | REFERENCE            | STATUS |
 |---------|----------------------|--------|
+| rsa     | [RFC8017], RFC XXXX  | active |
 | mldsa44 | [FIPS-204], RFC XXXX | active |
 
 ## DKIM Service Types
