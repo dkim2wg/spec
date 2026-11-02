@@ -267,14 +267,14 @@ An inbound filter verified a message and, finding no
 Message-Instance, added "m=1":
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
-      repo=git.example.net/dkim2; date=2026-10-28;
+      repo=git.example.net/dkim2; date=2026-11-02;
       sw=inbound-filter; action=mi-m=1; hc=8;
       hn=content-type,date,from,message-id,mime-version,subject,
       to,to;
       snaps=a5/a5440deb07cdcf63cd16bfaa29d9a87c0b97a300e1c2d3f4;
     Message-Instance: m=1; ...
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
-      repo=git.example.net/dkim2; date=2026-10-28;
+      repo=git.example.net/dkim2; date=2026-11-02;
       sw=inbound-filter; action=verify=none (no DKIM2 header
       fields found);
     Authentication-Results: mx.example.net; dkim2=none
@@ -282,7 +282,7 @@ Message-Instance, added "m=1":
 The same message after a mailing list recorded its changes as "m=2":
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
-      repo=git.example.org/listmanager; date=2026-10-28;
+      repo=git.example.org/listmanager; date=2026-11-02;
       sw=listmanager; action=mi-m=2; hc=18;
       hn=archived-at,content-type,date,feedback-id,from,list-archive,
       list-help,list-id,list-owner,list-post,list-subscribe,
@@ -294,7 +294,7 @@ The same message after a mailing list recorded its changes as "m=2":
 An outbound filter then verified the chain and signed:
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
-      repo=git.example.net/dkim2; date=2026-10-28;
+      repo=git.example.net/dkim2; date=2026-11-02;
       sw=outbound-filter; action=sign d=list.example.org a=rsa-sha256;
     DKIM2-Signature: i=2; d=list.example.org; ...
 
@@ -302,18 +302,18 @@ A Signer which declined because the Message-Instance chain would not
 undo:
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
-      repo=git.example.net/dkim2; date=2026-10-28;
+      repo=git.example.net/dkim2; date=2026-11-02;
       sw=outbound-filter; action=not-signed=broken-mi-chain;
 
 Two implementations on different drafts:
 
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
-      repo=git.example.net/dkim2; date=2026-10-28;
+      repo=git.example.net/dkim2; date=2026-11-02;
       sw=inbound-filter; action=verify=fail (Message-Instance m=1
       header hash mismatch (sha256));
     ...
     X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-07;
-      repo=git.example.com/mta; date=2026-10-18;
+      repo=git.example.com/mta; date=2026-10-20;
       sw=delivery-proxy; action=mi-m=1; hc=8;
       hn=content-type,date,feedback-id,from,message-id,mime-version,
       subject,to;
