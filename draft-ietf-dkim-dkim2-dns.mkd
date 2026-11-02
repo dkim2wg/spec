@@ -473,9 +473,19 @@ See also the Security Considerations of [RFC6376] and [DKIM2SPEC].
 
 # Acknowledgments {#acks :numbered="false"}
 
-This document is derived from DKIM {{RFC6376}}, edited by Dave Crocker,
-Tony Hansen and Murray Kucherawy, as updated by {{RFC8301}}, written by
-Scott Kitterman, and {{RFC8463}}, written by John Levine.
+The parent document to this is DKIM [RFC6376] from which the vast
+majority of content is copied with only slight editing to update for
+DKIM2.  The DKIM RFC was edited by Dave Crocker, Tony Hansen, and
+Murray Kucherawy.  In addition, another source for this document is
+the Ed25519 extension to DKIM [RFC8463] with content transferred
+verbatim directly.  The Ed25519 extension RFC was written by John
+Levine.  Credit for the content and specification for DKIM and the
+Ed25519 extension, from which DKIM2 is derived, goes to them.  Thanks
+goes to Christian Rößner for writing a detailed errata on RSA
+encoding in [RFC6376], and to Bron Gondwana for working through the
+errata history including those on the DKIM WG errata database.
+Thanks goes to Hannah Stern and Mauro De Gennaro for their valuable
+review comments.
 
 # Changes from Earlier Versions
 {:numbered="false"}
