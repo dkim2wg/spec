@@ -1,7 +1,7 @@
 ---
 title: A Diagnostic Header Field for DKIM2 Implementations
 abbrev: DKIM2 Debug Header
-docname: draft-gondwana-dkim2-debug-header-02
+docname: draft-gondwana-dkim2-debug-header-03
 submissionType: IETF
 number:
 date:
@@ -125,7 +125,7 @@ same in every field an emitter produces.
 
 draft:
 : The [DKIM2] revision the emitter implements, without the "draft-"
-  prefix, for example "ietf-dkim-dkim2-spec-08".
+  prefix, for example "ietf-dkim-dkim2-spec-09".
 
 repo:
 : Where the emitter's source code lives, as host and path with no
@@ -188,10 +188,9 @@ not expect them from other software.
 ## `verify=<result>` {#verify}
 
 The emitter verified the message on receipt. The result is one of
-the four [DKIM2] output states in lower case, or "none" if there were
-no DKIM2 header fields, as reported in Authentication-Results
-([AUTHRES]), optionally followed by a free-text explanation in
-parentheses:
+the five [DKIM2] output states in lower case, as reported in
+Authentication-Results ([AUTHRES]), optionally followed by a
+free-text explanation in parentheses:
 
     action=verify=pass (i=1..2 verified)
     action=verify=fail (Message-Instance m=2 header hash
@@ -267,14 +266,14 @@ repositories and program names are examples.
 An inbound filter verified a message and, finding no
 Message-Instance, added "m=1":
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
       repo=git.example.net/dkim2; date=2026-10-28;
       sw=inbound-filter; action=mi-m=1; hc=8;
       hn=content-type,date,from,message-id,mime-version,subject,
       to,to;
       snaps=a5/a5440deb07cdcf63cd16bfaa29d9a87c0b97a300e1c2d3f4;
     Message-Instance: m=1; ...
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
       repo=git.example.net/dkim2; date=2026-10-28;
       sw=inbound-filter; action=verify=none (no DKIM2 header
       fields found);
@@ -282,7 +281,7 @@ Message-Instance, added "m=1":
 
 The same message after a mailing list recorded its changes as "m=2":
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
       repo=git.example.org/listmanager; date=2026-10-28;
       sw=listmanager; action=mi-m=2; hc=18;
       hn=archived-at,content-type,date,feedback-id,from,list-archive,
@@ -294,7 +293,7 @@ The same message after a mailing list recorded its changes as "m=2":
 
 An outbound filter then verified the chain and signed:
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
       repo=git.example.net/dkim2; date=2026-10-28;
       sw=outbound-filter; action=sign d=list.example.org a=rsa-sha256;
     DKIM2-Signature: i=2; d=list.example.org; ...
@@ -302,13 +301,13 @@ An outbound filter then verified the chain and signed:
 A Signer which declined because the Message-Instance chain would not
 undo:
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
       repo=git.example.net/dkim2; date=2026-10-28;
       sw=outbound-filter; action=not-signed=broken-mi-chain;
 
 Two implementations on different drafts:
 
-    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-08;
+    X-DKIM2-Info: draft=ietf-dkim-dkim2-spec-09;
       repo=git.example.net/dkim2; date=2026-10-28;
       sw=inbound-filter; action=verify=fail (Message-Instance m=1
       header hash mismatch (sha256));
@@ -343,6 +342,11 @@ and SHOULD cap the length of "hn".
 
 Changes from Earlier Versions
 =============================
+
+draft-gondwana-dkim2-debug-header-03
+
+Aligned with draft-ietf-dkim-dkim2-spec-09: "none" is now one of the
+five [DKIM2] output states. Examples name spec-09.
 
 draft-gondwana-dkim2-debug-header-02
 
