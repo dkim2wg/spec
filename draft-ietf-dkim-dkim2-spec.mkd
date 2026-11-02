@@ -1,7 +1,7 @@
 ---
 title: DomainKeys Identified Mail Signatures v2 (DKIM2)
 abbrev: DKIM2 Signatures
-docname: draft-ietf-dkim-dkim2-spec-08
+docname: draft-ietf-dkim-dkim2-spec-09
 submissionType: IETF
 number:
 date:
@@ -72,6 +72,7 @@ informative:
     RFC1047:
     RFC3864:
     RFC4732:
+    RFC4870:
     RFC5598:
     RFC7208:
     RFC8301:
@@ -84,11 +85,11 @@ informative:
 
 --- abstract
 
-DomainKeys Identified Mail v2 (DKIM2) permits a person, role, or
-organization that owns a signing domain to document that it has
-handled an email message by associating their domain with the
-message.  This is achieved by providing a hash value that has
-been calculated on the current contents of the message and then applying a cryptographic
+DomainKeys Identified Mail v2 (DKIM2) permits the owner of a signing
+domain to document that they have handled an email message by
+associating their domain with the message.
+This is achieved by providing a hash value that has been calculated on the
+current contents of the message and then applying a cryptographic
 signature that covers the hash values and other details about the
 transmission of the message. Verification is performed by querying an entry
 within the signing domain's DNS space to retrieve an appropriate public
@@ -127,8 +128,8 @@ of Custody assists Verifiers in distinguishing between messages that
 were intended to be sent to a particular email address and those
 that are being "replayed" to that address.
 
-The Chain of Custody can also be used to ensure that delivery status
-notifications are only sent to entities that were involved in the
+The Chain of Custody can also be used to ensure that Delivery Status
+Notifications are only sent to entities that were involved in the
 transmission of a message.
 
 Organizations that process a message can add to their signature
@@ -165,7 +166,9 @@ This document uses JSON [RFC8259] to encode the Recipes which
 record changes made to the message header fields or the message body.
 The JSON objects are then base64 encoded. This means that a
 standard JSON parser can be used to create what may be quite
-complex data structures. Keys in the top-level JSON object other
+complex data structures.
+
+Keys in the top-level JSON object other
 than "h" and "b" are reserved for future specifications, which may
 define new kinds of Recipe with their own syntax. If present,
 unrecognized top-level keys will be ignored. Within "h" and "b" only
@@ -303,6 +306,12 @@ DKIM2-Signature header field created for the message uses a Signing
 Domain that can be matched to the domain within the email
 address in the From.
 
+Domain Policy Record
+: The Domain Policy Record holds a flag to indicate whether or not
+subdomains can assert that parent domain From header fields are
+Authentic. The Domain Policy Record for example.com lives at
+_domainkey.example.com.
+
 Fully Verified DKIM2 Message
 : A Fully Verified DKIM2 Message is one which meets all the
 requirements set out in this specification on Signers, particularly
@@ -323,7 +332,7 @@ Verified DKIM2 Message but not a guarantee that it is.
 
 There are two forms of whitespace used in this specification:
 
-*  WSP represents simple whitespace, i.e., a space or a tab character
+*  WSP represents simple whitespace, i.e. a space or a tab character
    (formal definition in [RFC5234]).
 
 *  FWS is folding whitespace.  It allows multiple lines separated by
@@ -351,11 +360,12 @@ The following ABNF tokens are used elsewhere in this document:
 
     ALPHADIGITD  = (ALPHA / DIGIT / "-" / "_")
 
-    textstring   =  [FWS] ALPHADIGITD *(ALPHADIGITD) [FWS]
+    textstring   = [FWS] ALPHADIGITD *(ALPHADIGITD) [FWS]
 
-    ALPHADIGITPS =  (FWS / ALPHA / DIGIT / "+" / "/")
+    ALPHADIGITPS = (ALPHA / DIGIT / "+" / "/")
 
-    base64string =  ALPHADIGITPS *(ALPHADIGITPS) [[FWS] "=" [[FWS] "="]]
+    base64string = ALPHADIGITPS *([FWS] ALPHADIGITPS)
+                   [[FWS] "=" [[FWS] "="]]
 
 Note that base64strings are defined in [RFC4648], but that document
 does not contain any ABNF. A base64string MUST be padded with zero
@@ -405,8 +415,7 @@ signing algorithm MUST use a public exponent of 65537.
 Signers MUST use RSA keys of at least 1024 bits and SHOULD use keys of
 at least 2048 bits (as has been the case for DKIM1 since [RFC8301]).
 Verifiers MUST be able to validate signatures with keys ranging from 1024 bits
-to 4096 bits, and they MAY be able to validate signatures with larger keys. They
-MUST NOT validate signatures with keys of less then 1024 bits.
+to 4096 bits, and they MAY be able to validate signatures with larger keys.
 
 The signature value (expressed in base64) is placed (with the identifying
 text string "rsa-sha256") into DKIM2-Signature header fields.
@@ -484,8 +493,56 @@ DKIM2 keys are stored in a subdomain named "_domainkey".  Given a
 DKIM2-Signature field with a "d=" tag of "example.com" and a Selector
 of "foo.bar", the DNS query will be for "foo.bar._domainkey.example.com".
 
+Keys are held in a TXT RR at the selector name. Records that begin with
+a "v=" tag with a value other than "DKIM1" are ignored. If more than
+one record then remains, this is an error.
+
 NOTE: these keys are no different, and are stored in the same locations
 as those for DKIM1 ([RFC6376]).
+
+Further details can be found in [DKIMKEYS].
+
+## Domain Policy Record {#domain-policy}
+
+Many domain owners have delegated a subdomain to intermediaries
+that send email on their behalf. This subdomain allows the
+intermediary to set up a range of DNS records associated with the
+sending of email messages.
+
+It has become commonplace for the use of these subdomains
+as DKIM1 Signing Domains to be regarded as equivalent to using
+the parent domain. To preserve this behavior, DKIM2 takes account
+of the DKIM1 convention when assessing whether or not
+From header fields are Authentic.
+
+Authorizing subdomains to be able to make From header fields Authentic
+may be entirely inappropriate. Hence, DKIM2 introduces a
+Domain Policy Record to hold a flag to record when
+subdomains are not authorized to do this.
+
+The Domain Policy Record is stored in the "_domainkey" location
+itself (i.e. for "example.com" the record is at "_domainkey.example.com").
+This is the location where the original DomainKeys algorithm ([RFC4870])
+placed a "Policy Statement".
+
+It is a Tag=Value list (see {{tagvaluelists}}) held in a TXT RR. It always
+begins with the tag v=DKIM1 (for consistency with key records and to avoid
+any confusion with [RFC4870] material). An optional f= tag holds
+a colon-separated list of flags. The flag "strict" indicates that
+subdomains are not authorized to make From header fields that use
+the domain Authentic. If the strict flag is absent, or there is no f=
+tag, they are authorized. Unrecognized flags are ignored.
+
+Purported Domain Policy Records that do not begin with v=DKIM1 are
+ignored; if more than one remains the relevant match result is a PERMERROR.
+
+If there is no Domain Policy Record then subdomains are
+authorized. If the Domain Policy Record cannot be retrieved
+because of a temporary DNS failure the relevant match result is a TEMPERROR.
+
+Note that the Domain Policy Record applies only to the domain that
+holds it. There is no inheritance of policy either "up" or "down"
+the DNS hierarchy.
 
 Further details can be found in [DKIMKEYS].
 
@@ -936,6 +993,9 @@ for organizations that use subdomains, this also allows existing
 "bounce-handling" mechanisms that utilize subdomains to continue
 to work alongside DKIM2.
 
+For From header fields the match is also made in the other direction
+(see {{subdomain-from}} and Item [](#from-rdm){: format="counter"} below).
+
 The algorithm operates in such a way that there is no need to consider
 issues such as the different numbers of labels in so-called
 "public suffixes". The organization operating the "suffix" can determine
@@ -999,12 +1059,21 @@ The relaxed domain match algorithm is used for four purposes:
    When the mf= value is null (mf=<>) or missing (nd= tag present) the matching
    algorithm is not used.
 
-1. To check that a From header field is Authentic, the domain from the
+1. {:#from-rdm} To check that a From header field is Authentic, the domain from the
    addr-spec in the From header field will be matched with the Signing
    Domain of the relevant DKIM2-Signature header field (see {{authentic-from}}).
 
    The value from the From header field is Parameter1 for the algorithm,
    the d= value is Parameter2.
+
+   If the algorithm finds that there is no match then the algorithm is
+   re-run with the d= value as Parameter1 and the value from the From header
+   field as Parameter2.
+
+   If this second check gives a match but the Domain Policy Record
+   (see {{domain-policy}}) for the domain from the From header field
+   indicates that subdomains are not authorized to make this From
+   header field Authentic, then there is no match.
 
 1. {:#dsn-rdm} To ensure that a DSN (see {{bounce}}) is not forged, the Signing
    Domain used to send the DSN needs to match a recipient address of the
@@ -1044,8 +1113,8 @@ The relaxed domain match algorithm proceeds as follows:
 # Tag=Value Lists {#tagvaluelists}
 
 DKIM2 uses a simple "tag=value" syntax in the Message-Instance and
-DKIM2-Signature header fields, as well as in domain signature records
-(see [DKIMKEYS]).
+DKIM2-Signature header fields. It is also used in the DNS TXT
+records for public key values and the Domain Policy Record.
 
 Values are a series of strings containing either text or a
 base64string (see {{common-ABNF}}). The name of the tag will determine
@@ -1078,9 +1147,9 @@ tag-names or tag-values are case-sensitive or not. Absent any statement
 to the contrary both items are case-sensitive. The specification
 may also prescribe that whitespace within a tag-value is to be ignored.
 
-Tags may appear in any order. Tags with duplicate names MUST NOT occur
-within a single tag-list; if a tag name does occur more than once, the
-entire tag-list is invalid.
+Tags may appear in any order, unless otherwise specified. Tags with
+duplicate names MUST NOT occur within a single tag-list; if a tag name
+does occur more than once, the entire tag-list is invalid.
 
 Tags that have an empty value are not the same as omitted tags. An
 empty value explicitly designates the empty string as the value. An
@@ -1425,12 +1494,12 @@ From header field and the Signing Domain found in the d= tag
 of the relevant DKIM2-Signature header field. The Authentic
 property is demonstrated by the ability to use the domain to sign.
 
-When the From header field has not been altered since the message
+When the From header field has not been modified since the message
 was signed for the very first time, i.e. when the i=1
 DKIM2-Signature field was created, then that From and that
 DKIM2-Signature are the relevant header fields for the comparison.
 
-If another system replaces the From header field, which will be
+If another system modifies the From header field, which will be
 apparent by inspecting the header Recipes (see {{header-recipes}}),
 then the lowest numbered (i=) DKIM2-Signature header field whose
 m= value is greater than or equal to the m= value of the
@@ -1443,6 +1512,20 @@ uses domain-literals (IP addresses instead of domains), can
 never be Authentic. If a message has such a From header field
 it will not be possible for a Verifier to conclude that it is
 a Fully Verified DKIM2 Message.
+
+## Using subdomains to make From header fields Authentic {#subdomain-from}
+
+As explained in {{domain-policy}}, custom and practice has been
+to permit subdomains to act as a Signing Domain on behalf of a
+parent domain. To avoid considerable disruption DKIM2 also allows
+this when determining whether or not a From header field is
+Authentic.
+
+Hence the relaxed domain match is operated both "downwards" and
+"upwards" when comparing the Signing Domain and the domain from
+the From header field. When this is not appropriate a parent
+domain can publish a Domain Policy Record (see {{domain-policy}})
+to prevent the "upwards" comparison from occurring.
 
 # Signer actions
 
@@ -1597,13 +1680,14 @@ that the From header field in the message will be Authentic
 If no Signing Domain can make the From header field Authentic, the
 message cannot ever be a Fully Verified DKIM2 Message.
 
-In simple terms, the Signing Domain will be equal to, or a parent
-of, both the MAIL FROM domain and the From header field domain
-for the original message and whenever the From header field is
-modified by an intermediary. A Signer without access to a private
-key for the From header field domain (or a parent of it) cannot
-make the From header field Authentic, and nor can any Signer when
-the From header field has more than one address or a domain-literal.
+In simple terms, the Signing Domain will be equal to, or a
+parent of, the MAIL FROM domain. It will also be equal to,
+or a parent of, the From header field domain, or a
+subdomain of it if the From header field domain permits
+that to occur (see {{subdomain-from}}). A Signer without access to
+a suitable private key cannot make the From header field
+Authentic, and nor can any Signer when the From header
+field has more than one address or a domain-literal.
 
 ## Determine if an "exploded" flag is required
 
@@ -1881,7 +1965,7 @@ DKIM2 Message.
 ## Output states {#output-states}
 
 For compatibility with the Authentication-Results header field defined
-in [RFC8601] a verification will result in one of four states.
+in [RFC8601] a verification will result in one of five states.
 
 The states report whether or not the message has traveled to the
 destination without undeclared modifications and along a delivery
@@ -1890,9 +1974,12 @@ in any way as to whether the message will be of value to the
 recipient or whether any modifications that have been declared are or
 are not benign.
 
-The four states are:
+The five states are:
 
-PASS:  The message was successfully verified.
+NONE:  The message does not contain any DKIM2-Signature or
+       Message-Instance header fields.
+
+PASS:  The message is a Fully Verified DKIM2 Message.
 
 FAIL:  Verification of the message was completed but concluded that
        it was not a Fully Verified DKIM2 Message.
@@ -1902,7 +1989,7 @@ PERMERROR:  The message could not be verified due to some error that
       or malformed.
 
 TEMPERROR:  The message could not be verified due to a temporary
-      inability to retrieve a public key. A later attempt may
+      inability to retrieve a DNS record. A later attempt may
       produce a different result.
 
 A Verifier MAY cease verifying once the outcome of the verification
@@ -1910,9 +1997,9 @@ is known.
 
 Verifiers wishing to communicate the results of verification to other
 parts of the mail system may do so in whatever manner they see fit. If
-they wish to provide a human-readable string to describe a failure
-to verify (any state except PASS) then in order to provide the
-maximum possible assistance to senders they SHOULD use the text
+they wish to provide a human-readable string to describe a result
+that is not a PASS then, in order to provide the
+maximum possible assistance to senders, they SHOULD use the text
 strings specified in this document. These human-readable messages
 are described with m=`<x>` or tag=`<y>` placeholders;
 the `<x>` and `<y>` MUST be replaced with the relevant ordinal
@@ -1963,25 +2050,35 @@ error message SHOULD NOT confuse this situation with other JSON
 errors. What "unacceptably complex" might mean is a local
 policy decision.
 
-Clearly, a message with no DKIM2 header fields at all will be
-reported as a PERMERROR.
+When a message has a null Recipe a Verifier will be unable
+to complete all of the checks on the message, and a PERMERROR will
+result. Whether such a message is nevertheless acceptable is a
+matter for local policy (see {{verification}}).
+
+A message with no DKIM2 header fields at all will be reported as
+NONE. It may of course contain DKIM1 signatures, or it may not
+be signed at all.
 
 Possible errors:
 
     PERMERROR: Message-Instance m=<x> missing
+    PERMERROR: Message-Instance m=<x> is duplicated
     PERMERROR: Message-Instance m=<x> syntax error
     PERMERROR: Message-Instance m=<x> tag=<y> missing
     PERMERROR: Message-Instance m=<x> is not signed
     PERMERROR: Message-Instance m=<x> has a duplicate hash algorithm
     PERMERROR: Message-Instance m=<x> contains invalid JSON
-    PERMERROR: Message-Instance m=<x> Recipe <value> is invalid
+    PERMERROR: Message-Instance m=<x> recipe <value> is invalid
     PERMERROR: Message-Instance m=<x> JSON is unacceptably complex
+    PERMERROR: Message-Instance m=<x> has a null recipe
     PERMERROR: DKIM2-Signature i=<x> missing
+    PERMERROR: DKIM2-Signature i=<x> is duplicated
     PERMERROR: DKIM2-Signature i=<x> syntax error
     PERMERROR: DKIM2-Signature i=<x> tag=<y> missing
     PERMERROR: DKIM2-Signature i=<x> tag=<y> was unexpected
+    PERMERROR: DKIM2-Signature i=1 has an exploded flag
     PERMERROR: DKIM2-Signature i=<x> has a duplicate selector
-    PERMERROR: No DKIM2 header fields found
+    NONE: No DKIM2 header fields found
 
 ## Check the timestamps {#check-timestamps}
 
@@ -2050,7 +2147,7 @@ Possible errors:
 
     FAIL: DKIM2-Signature i=<x> MAIL FROM <value> did not match
     FAIL: DKIM2-Signature i=<x> RCPT TO <value> did not match
-    FAIL: DKIM2-Signature i=<x> MAIL FROM and d= do not match
+    FAIL: DKIM2-Signature i=<x> mf= and d= do not match
     FAIL: DKIM2-Signature i=<x> nd= does not match
     FAIL: DKIM2-Signature i=<x> unexpected nd= tag
     FAIL: DKIM2-Signature i=<x> mf= does not match the rt= of i=<y>
@@ -2066,8 +2163,9 @@ is a PERMERROR.
 
 Note that DNS timeouts are considered to be a TEMPERROR but a DNS
 result that indicates the key is absent is considered to be a
-PERMERROR. Additionally, as [DKIMKEYS] makes clear, if more than
-one record is returned this is an error. Any human-readable error
+PERMERROR. Additionally, if more than one record remains from
+the processing set out in {{key_management}}, this is an error.
+Any human-readable error
 message that results from key fetching errors SHOULD provide the
 Selector value so that it is clear which key has a problem.
 
@@ -2076,8 +2174,8 @@ octets (1752 characters once encoded as a base64string) is to be
 considered malformed. Similarly, Ed25519 keys are exactly 32
 octets (44 characters as a base64string), see [RFC8032].
 
-Note that [DKIMKEYS] has retired the h= field and DKIM2 takes no
-notice of it should it be present.
+Note that [DKIMKEYS] deprecates the h=, n=, s= and t= tags;
+DKIM2 ignores them if they are present.
 
 Possible errors:
 
@@ -2113,8 +2211,9 @@ following steps:
     value cannot be checked because of an issue with the key then the
     intermediate result is either TEMPERROR or PERMERROR.
 
-1.  An algorithm which a Verifier has not implemented is given a PERMERROR
-    intermediate result.
+1.  An algorithm which a Verifier has not implemented, or which
+    it regards as insecure, or a public key it regards as too short, is
+    given a PERMERROR intermediate result.
 
 1.  Determine whether the signatures specified in the s= tag provide an
     overall PASS for the signing of the message. The "sig-all" (comma
@@ -2153,6 +2252,8 @@ of them):
     FAIL: DKIM2-Signature i=<x> selector <s1> incorrect signature
     FAIL: DKIM2-Signature i=<x> no group of signatures passed
     PERMERROR: DKIM2-Signature i=<x> selector <s1> algorithm unknown
+    PERMERROR: DKIM2-Signature i=<x> selector <s1> algorithm insecure
+    PERMERROR: DKIM2-Signature i=<x> public key <s1> too short
 
 ## Validating body and header hashes {#hashcheck}
 
@@ -2166,8 +2267,8 @@ Message-Instance header field and the PASS/FAIL calculated as follows:
     hash-sets in the h= value in turn. If both match the intermediate
     result is PASS, otherwise the intermediate result is FAIL.
 
-1.  A hash algorithm which a Verifier has not implemented has a PERMERROR
-    intermediate result.
+1.  A hash algorithm which a Verifier has not implemented, or which
+    it regards as insecure, has a PERMERROR intermediate result.
 
 1.  If there is just one hash-set then the intermediate result is the
     result.
@@ -2205,6 +2306,7 @@ of them):
     FAIL: Message-Instance m=<x> body hash <value> mismatch
     FAIL: Message-Instance m=<x> no group of hashes passed
     PERMERROR: Message-Instance m=<x> algorithm <value> unknown
+    PERMERROR: Message-Instance m=<x> algorithm <value> insecure
 
 ## Check for Authentic From header fields
 
@@ -2226,6 +2328,11 @@ than one address, or with a domain-literal, can never be Authentic.
 Possible errors:
 
     FAIL: DKIM2-Signature i=<x> matching From is not authentic
+    FAIL: DKIM2-Signature i=<x> From <value> forbids subdomain signing
+    FAIL: DKIM2-Signature i=<x> From has more than one address
+    FAIL: DKIM2-Signature i=<x> From uses a domain literal
+    TEMPERROR: DKIM2-Signature i=<x> policy for <value> unavailable
+    PERMERROR: DKIM2-Signature i=<x> multiple records for <value> policy
 
 # DKIM Replay attacks {#DKIM-Replay}
 
@@ -2478,7 +2585,8 @@ encoding means no difficulties will arise).
 
 Non-ASCII characters can also appear in From header fields, which are
 recorded and compared when checking if they are Authentic. Again, a
-U-label must be mapped to an A-label before comparisons are made. Local
+U-label must be mapped to an A-label before comparisons are made or
+a lookup for a Domain Policy Record is performed. Local
 parts are only ever compared in exact matches.
 
 It should be noted that although email standards generally require
@@ -2493,7 +2601,7 @@ sequences of byte values that are not valid UTF-8.
 
 # IANA Considerations
 
-IANA is requested to add the following two header fields to the
+IANA is requested to add two header fields to the
 "Permanent Message Header Field Names" table of the "Message
 Headers" registry (see [RFC3864]).
 
@@ -2568,12 +2676,37 @@ will need to pay attention to community advice as to whether cryptographic
 primitives are appropriate to use, regardless of what this specification
 might say.
 
+The default in this specification is that a subdomain is authorized to make
+a From header field that uses a parent domain Authentic by reason of the relaxed
+domain match (see {{rdm-uses}} Item [](#from-rdm){: format="counter"}).
+A domain that lets others put DNS records in its
+subdomains, whether customers, tenants or users (hosting platforms,
+dynamic DNS services, some public-suffix-style registries), needs to
+publish a Domain Policy Record with an f=strict setting to prevent
+those parties from being able to do that.
+Note that sibling domains can never be matched and a Top Level Domain
+(TLD) does not need f=strict unless From addresses at the TLD
+are in use. It is of course unfortunate to have a security control
+that defaults to authorized, but this is the only viable way to avoid
+considerable disruption to existing custom and practice.
+
 --- back
 
 # Changes from Earlier Versions
 {:numbered="false"}
 
 RFC Editor: please remove this section before publication.
+
+## draft-ietf-dkim-dkim2-spec-09
+{:numbered="false"}
+
+* Added Domain Policy Record and up/down algorithm for Authentic From.
+* Removed key length MUST from Verifiers.
+* Ensured all Verification checks have error text suggestions.
+* Clarified that there is only one key record allowed per selector.
+* Verifiers may regard algorithms and key lengths as insecure.
+* No DKIM2 header fields at all is now NONE rather than PERMERROR.
+* Various minor changes and improvements.
 
 ## draft-ietf-dkim-dkim2-spec-08
 {:numbered="false"}
