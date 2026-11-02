@@ -1,0 +1,186 @@
+---
+title: Permitted modifications to DKIM2 messages
+abbrev: DKIM2 CanModify
+docname: draft-clayton-dkim-canmodify-00
+submissionType: IETF
+number:
+date:
+v:
+category: std
+ipr: trust200902
+keyword: Internet-Draft
+stand_alone: yes
+pi: [toc, sortrefs, symrefs]
+
+author:
+ -
+    ins: R. Clayton
+    name: Richard Clayton
+    org: Yahoo
+    email: rclayton@yahooinc.com
+
+normative:
+    RFC5234:
+    RFC5322:
+    RFC7405:
+    DKIM2SPEC: I-D.ietf-dkim-dkim2-spec
+
+informative:
+    RFC5598:
+
+--- abstract
+
+DomainKeys Identified Mail v2 (DKIM2) requires any modifications made
+to email messages by intermediaries to be recorded in "recipes".
+Some originators wish to request that only very limited modifications be
+made to their messages so that the recipient of the message can have some
+assurance that the modifications were benign. This document introduces the
+CanModify header field into which originator requests may be placed. It
+then sets out a small set of modifications that are commonly applied
+by intermediaries and assesses how benign they may actually be.
+
+--- middle
+
+# Introduction
+
+DomainKeys Identified Mail v2 (DKIM2) requires any modifications made
+to email messages by intermediaries to be recorded in "recipes"
+(see [DKIM2SPEC]).
+Some originators wish to request that only very limited modifications be
+made to their messages so that the recipient of the message can have some
+assurance that the modifications were benign.
+
+# Terminology and definitions
+
+{::boilerplate bcp14-tagged}
+
+DKIM2 is designed to operate within the Internet Mail service, as
+defined in [RFC5598].  Basic email terminology is taken from that
+specification.
+
+Syntax descriptions use Augmented BNF (ABNF) [RFC5234], together with
+the %s"..." notation for case-sensitive strings defined in [RFC7405].
+
+## Whitespace
+
+There are two forms of whitespace used in this specification:
+
+*  WSP represents simple whitespace, i.e. a space or a tab character
+   (formal definition in [RFC5234]).
+
+*  FWS is folding whitespace.  It allows multiple lines separated by
+   CRLF followed by at least one whitespace, to be joined.
+
+The formal ABNF for these are (WSP given for information only):
+
+    WSP =   SP / HTAB
+    FWS =   [*WSP CRLF] 1*WSP
+
+The definition of FWS is identical to that in [RFC5322] except for
+the exclusion of obs-FWS.
+
+Other tokens not defined herein are imported from [RFC5234].  These
+are intuitive primitives such as SP, HTAB, WSP, ALPHA, DIGIT, CRLF,
+etc.
+
+# The CanModify header field
+
+A CanModify header field holds a comma-separated list of types
+of modification that an email originator is content that intermediaries
+can do to a message. Types can appear in any order, and SHOULD only
+appear once. Unrecognized types are ignored.
+
+The request is not valid if a message contains more than one CanModify
+header field or the CanModify header field is not in conformance with this
+specification.
+
+The request is not valid if the current CanModify header field in the
+message is not identical to any CanModify header field covered by the
+i= DKIM2-Signature header field (viz it was not added at origination, or
+has been added, removed or modified since). Alterations will be
+apparent from inspecting the DKIM2 header recipes in the message.
+
+The request is not valid if a message is not a Fully Verified DKIM2
+Message (see [DKIM2SPEC] for how this is determined).
+
+An absence of a CanModify header field means that no originator request
+is being made. If the request is for no modifications whatsoever then use
+"CanModify: none".
+
+It is entirely a matter of local policy whether or not a receiver (or an
+intermediary) takes any notice of requests, what it does when it can
+determine that another system has modified the message in a way that
+an originator has not permitted, and what action is taken
+when there is an invalid request in the message.
+
+ABNF:
+
+    cm-field     = "CanModify:" [FWS] cm-request
+                   *( [FWS] "," [FWS] cm-request )
+    cm-request   = %s"none" / %s"bodywrap" / %s"subjectprefix" /
+                   %s"alterfrom" / x-cm-request
+    x-cm-request = 1*( ALPHA / DIGIT / "-" / "_" ) ; for future additions
+
+## The "none" modification request
+
+If used, "none" MUST be the only request made. It expresses a request by an
+email originator for no modifications to be made to a message.
+
+## The "bodywrap" modification
+
+If used, "bodywrap" indicates that the originator is content for the original
+message to be delivered as MIME part, optionally preceded or succeeded by
+other MIME parts that provide headers or footers.
+
+This is a benign change provided that the "header" and "footer" contain
+simple text and URLs. A later version of this document will try and
+tie this down more precisely.
+
+## The "subjectprefix" modification
+
+If used, "subjectprefix" indicates that the originator is content for the
+Subject header field of the original message to be preceded by up
+to 32 ASCII characters (e.g. "`[EXTERNAL]`" or "`[MAILINGLISTNAME]`").
+
+This is a benign change provided that the receiver is viewing enough
+characters from the original Subject header field to comprehend
+what it originally said, and that important semantic information
+does not appear towards the end of the Subject header field.
+
+## The "alterfrom" modification
+
+If used, "alterfrom" indicates that the originator is content for the From
+header field of the original message to be replaced by a different
+From header field.
+
+This is benign if the receiver displays the original From header field,
+and because DKIM2 insists that From header fields are Authentic there
+are limits as to how inventive an intermediary could be in misleading
+a recipient.
+
+# IANA Considerations
+
+TBA
+
+# Security Considerations
+
+DKIM2 will sign the CanModify header field so it cannot be removed
+or modified without leaving evidence of this having occurred.
+
+The CanModify merely specifies a request by a message originator.
+Receivers are free to determine what to do if this request cannot
+be honored, or it is found that an intermediary has not honored it.
+
+--- back
+
+# Changes from Earlier Versions
+{:numbered="false"}
+
+RFC Editor: please remove this section before publication.
+
+## draft-clayton-dkim-canmodify-00
+{:numbered="false"}
+
+* Initial version.
+
+
